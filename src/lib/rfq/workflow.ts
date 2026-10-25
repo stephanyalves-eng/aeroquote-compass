@@ -61,6 +61,20 @@ export function averageConfidence(q: ExtractedQuote): number | null {
 export function canCompare(documents: QuoteDocument[], ref: RfqReference) {
   return referenceErrors(ref).length === 0 && documents.length > 0 && documents.every((d) => d.confirmed && d.reviewed && quoteErrors(d.reviewed).length === 0 && d.status === "Extracted");
 }
+/** Local calendar date (YYYY-MM-DD), not UTC: after 21:00 in Brazil UTC is already tomorrow. */
+export function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+/**
+ * Bulk extraction (no id) only queues untouched documents: Ready or Error.
+ * Already extracted or buyer-edited documents are re-extracted only via the per-row Reprocess button (id given).
+ */
+export function extractQueue(documents: QuoteDocument[], id?: string): QuoteDocument[] {
+  const hasContent = (d: QuoteDocument) => Boolean(d.text.trim() || d.pdfBase64) && d.status !== "Uploading";
+  if (id) return documents.filter((d) => d.id === id && hasContent(d));
+  return documents.filter((d) => (d.status === "Ready" || d.status === "Error") && hasContent(d));
+}
 
 export const REVIEW_FIELDS: { key: keyof ExtractedQuote; label: string; kind: "text" | "number" | "boolean" | "json" | "certifications" }[] = [
   { key: "supplier_name", label: "Supplier", kind: "text" },
