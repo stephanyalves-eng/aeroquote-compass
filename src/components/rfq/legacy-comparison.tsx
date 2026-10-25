@@ -6,11 +6,11 @@ import type { QuoteAnalysis, RfqReference, RiskLevel, Severity } from "@/lib/rfq
 const usd = (n: number | null) => n === null ? "Not provided" : "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 const num = (n: number | null | undefined, opts: Intl.NumberFormatOptions = {}) => n == null ? "Not provided" : n.toLocaleString("en-US", opts);
 const inputCls = "w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary";
-const riskColor: Record<RiskLevel, string> = { Low: "text-good border-good", Medium: "text-warn border-warn", High: "text-bad border-bad" };
-const sevColor: Record<Severity, string> = { HIGH: "text-bad border-bad", MEDIUM: "text-warn border-warn", INFO: "text-muted-foreground border-border" };
+const riskColor: Record<RiskLevel, string> = { Low: "text-success border-success bg-success-bg", Medium: "text-warning border-warning bg-warning-bg", High: "text-error border-error bg-error-bg" };
+const sevColor: Record<Severity, string> = { HIGH: "text-error border-error bg-error-bg", MEDIUM: "text-warning border-warning bg-warning-bg", INFO: "text-info border-info bg-info-bg" };
 
 function Pill({ className, children }: { className: string; children: ReactNode }) {
-  return <span className={`inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs font-medium ${className}`}><span className="h-2 w-2 rounded-full bg-current" />{children}</span>;
+  return <span className={`inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs font-medium ${className}`}><span className="h-2 w-2 bg-current" />{children}</span>;
 }
 
 function SupplierName({ name, sourceText, fallback = "—" }: { name: string | null; sourceText: string; fallback?: string }) {
@@ -46,12 +46,12 @@ export function ComparisonTable({ ranked, reference, slots }: { ranked: QuoteAna
   return (
     <div className="overflow-x-auto rounded-lg border border-border bg-background">
       <table className="w-full min-w-[640px] border-collapse text-sm">
-        <thead className="bg-petrol text-petrol-foreground">
+        <thead className="bg-surface-sunken">
           <tr>
-            <th className="sticky left-0 bg-petrol px-4 py-3 text-left text-xs font-medium uppercase tracking-wide">Field</th>
+            <th className="sticky left-0 bg-surface-sunken px-4 py-3 text-left font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-text-tertiary">Field</th>
             {ranked.map((a) => (
-              <th key={a.index} className="px-4 py-3 text-right text-xs font-medium">
-                #{a.rank} {a.rank === 1 && <span className="ml-1 text-mint">Best</span>}
+              <th key={a.index} className="px-4 py-3 text-right font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-text-tertiary">
+                #{a.rank} {a.rank === 1 && <span className="ml-1 text-text-signal">Best</span>}
               </th>
             ))}
           </tr>
@@ -90,9 +90,9 @@ export function RankCard({ a, reference, best, sourceText }: { a: QuoteAnalysis;
       </div>
       <div className="mt-4 text-2xl font-semibold">{usd(a.annualTotalUsd)}</div>
       <div className="text-xs text-muted-foreground">Annual total cost</div>
-      {!a.awardable && <div className="mt-3 rounded-sm border border-bad px-2 py-1 text-xs font-semibold text-bad">Not awardable until resolved</div>}
+      {!a.awardable && <div className="mt-3 rounded-sm border border-error bg-error-bg px-2 py-1 text-xs font-semibold text-error">Not awardable until resolved</div>}
       <ul className="mt-4 space-y-2">
-        {a.alerts.length === 0 && <li className="text-sm text-good">No alerts.</li>}
+        {a.alerts.length === 0 && <li className="text-sm text-success">No alerts.</li>}
         {a.alerts.map((al, i) => (
           <li key={i} className="flex items-start gap-2 text-sm">
             <Pill className={`${sevColor[al.severity]} shrink-0`}>{al.severity}</Pill>
