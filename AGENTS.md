@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - RFQ business rules (FX, costs, alerts, ranking) live in src/lib/rfq/rules.ts with tests in rules.test.ts; the AI only extracts JSON in extract.functions.ts. Why: calculations must be deterministic and testable.
+- Supplier display names and fictitious-marker detection use the shared deterministic supplier-name helper, without mutating extracted quotes. Why: tables, ranking cards, and email drafts must agree without affecting business rules.

@@ -1,7 +1,9 @@
 import type { QuoteAnalysis, RfqReference } from "./types";
+import { normalizeSupplierName } from "./supplier-name";
 
-export function draftClarificationEmail(a: QuoteAnalysis, ref: RfqReference): string {
+export function draftClarificationEmail(a: QuoteAnalysis, ref: RfqReference, sourceText = ""): string {
   const q = a.quote;
+  const supplier = normalizeSupplierName(q.supplier_name, sourceText);
   const asks = a.alerts.map((al, i) => {
     switch (al.code) {
       case "REVISION": return `${i + 1}. Revision: your quote references Rev ${q.revision}; our RFQ requires Rev ${ref.revision}. Please requote against Rev ${ref.revision}.`;
@@ -20,7 +22,7 @@ export function draftClarificationEmail(a: QuoteAnalysis, ref: RfqReference): st
   return [
     `Subject: ${ref.rfqNumber} - Clarification request on quote ${q.quote_id ?? ""}`.trim(),
     "",
-    `Dear ${q.supplier_name ?? "Supplier"} team,`,
+    `Dear ${supplier.name ?? "Supplier"}${supplier.isFictitious ? " (Fictitious)" : ""} team,`,
     "",
     `Thank you for your quotation ${q.quote_id ?? ""} for ${ref.partNumber} Rev ${ref.revision} (${ref.annualVolume} units/year). Before we can complete our evaluation, please address the points below:`,
     "",
