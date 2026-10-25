@@ -107,7 +107,7 @@ export function RankCard({ a, reference, best, sourceText }: { a: QuoteAnalysis;
       {email !== null && (
         <div className="mt-2">
           <textarea readOnly value={email} rows={12} className={`${inputCls} font-mono text-xs`} />
-          <button
+          <Button variant="link"
             onClick={() => { navigator.clipboard.writeText(email); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
             className="mt-1 text-xs underline"
           >
