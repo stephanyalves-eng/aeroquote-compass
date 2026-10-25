@@ -29,6 +29,7 @@ function parseJson(text: string): ExtractedQuote {
     price_breaks: Array.isArray(raw.price_breaks) ? raw.price_breaks : [],
     one_time_costs: Array.isArray(raw.one_time_costs) ? raw.one_time_costs : [],
     certifications: Array.isArray(raw.certifications) ? raw.certifications : [],
+    new_supplier_requires_qualification: raw.new_supplier_requires_qualification === true,
   } as ExtractedQuote;
 }
 
