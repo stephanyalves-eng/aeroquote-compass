@@ -81,5 +81,6 @@ export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intel
     ["Why this supplier?", insights.why ?? "Resolve critical / incomplete data before an award recommendation."],
     ["Key trade-offs", insights.recommended ? `Cost premium vs lowest quote: USD ${usd(insights.difference)}; lead time: ${days(insights.recommended.baseline.quote.lead_time_days)}; payment terms: ${days(insights.recommended.baseline.quote.payment_terms_days)}; risk: ${insights.recommended.risk}; estimated logistics: ${insights.recommended.estimated}.` : "Not provided"],
   ]);
+  finish();
   pdf.save(`${filename}-analysis.pdf`);
 }
