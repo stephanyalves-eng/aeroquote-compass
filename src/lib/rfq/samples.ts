@@ -28,4 +28,14 @@ Incoterm EXW Wichita, KS. Lead time 90 days ARO.
 Terms: Net 30. Tooling charge: USD 6,500 (one-time).
 AS9100D certified. ECCN 9A991.
 Warranty 12 months.`,
+  `MERIDIAN FLIGHT COMPONENTS LLC (FICTITIOUS) - Quote MFC-1042
+Issued: Oct 20, 2026. Valid until: Jan 31, 2027.
+RFQ-24410 / PN-45Y1258 Rev C - Hydraulic actuator Y8
+Unit price USD 16,900 for 12 units/year. MOQ 4.
+Incoterm EXW Tulsa, OK. Lead time 100 days ARO. Payment Net 60.
+Annual freight for all 12 units: USD 24,000. Annual insurance: USD 3,000.
+Annual duties: USD 0. Annual other adders: USD 0.
+One-time NRE: USD 8,000. AS9100D certified. FAI included. ECCN 9A991.
+Country of origin: USA. Delivery: São José dos Campos, Brazil.
+Warranty 24 months. Existing qualified supplier. No escalation clause. No commercial exceptions.`,
 ];
