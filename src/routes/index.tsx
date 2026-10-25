@@ -5,6 +5,7 @@ import { extractQuote } from "@/lib/rfq/extract.functions";
 import { analyzeQuote, DEFAULT_INCOTERM_ADDERS, rankQuotes } from "@/lib/rfq/rules";
 import { SAMPLE_QUOTES } from "@/lib/rfq/samples";
 import { draftClarificationEmail } from "@/lib/rfq/email";
+import { normalizeSupplierName } from "@/lib/rfq/supplier-name";
 import type { ExtractedQuote, QuoteAnalysis, RfqReference, RiskLevel, Severity } from "@/lib/rfq/types";
 
 export const Route = createFileRoute("/")({
@@ -122,9 +123,9 @@ function Index() {
           <div className="mt-6">
             <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Freight and insurance adder (% of goods value)</div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-              {Object.keys(ref.incotermAdders).map((k) => (
+              {Object.entries(ref.incotermAdders).map(([k, value]) => (
                 <Field key={k} label={k}>
-                  <NumInput step="0.1" value={ref.incotermAdders[k]} onChange={(v) => setRef({ ...ref, incotermAdders: { ...ref.incotermAdders, [k]: v } })} />
+                  <NumInput step="0.1" value={value} onChange={(v) => setRef({ ...ref, incotermAdders: { ...ref.incotermAdders, [k]: v } })} />
                 </Field>
               ))}
             </div>
@@ -172,12 +173,12 @@ function Index() {
         {ranked.length > 0 && (
           <>
             <Section title="Comparison">
-              <ComparisonTable ranked={ranked} reference={ref} />
+              <ComparisonTable ranked={ranked} reference={ref} slots={slots} />
             </Section>
             <Section title="Ranking by annual total cost">
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
                 {ranked.map((a) => (
-                  <RankCard key={a.index} a={a} reference={ref} best={a.rank === 1} />
+                  <RankCard key={a.index} a={a} reference={ref} best={a.rank === 1} sourceText={slots[a.index]?.text ?? ""} />
                 ))}
               </div>
             </Section>
@@ -226,7 +227,7 @@ function NumInput({ value, onChange, step = "1" }: { value: number; onChange: (v
   return <input type="number" step={step} value={Number.isFinite(value) ? value : ""} onChange={(e) => onChange(parseFloat(e.target.value))} className={inputCls} />;
 }
 
-function QuoteCard({ index, slot, onChange, onRemove }: { index: number; slot: QuoteSlot; onChange: (p: Partial<QuoteSlot>) => void; onRemove?: () => void }) {
+function QuoteCard({ index, slot, onChange, onRemove }: { index: number; slot: QuoteSlot; onChange: (p: Partial<QuoteSlot>) => void; onRemove?: (() => void) | undefined }) {
   const onFile = (f: File | undefined) => {
     if (!f) return;
     const reader = new FileReader();
@@ -285,10 +286,18 @@ function Pill({ className, children }: { className: string; children: ReactNode 
   return <span className={`inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs font-medium ${className}`}><span className="h-2 w-2 rounded-full bg-current" />{children}</span>;
 }
 
-function ComparisonTable({ ranked, reference }: { ranked: QuoteAnalysis[]; reference: RfqReference }) {
+function SupplierName({ name, sourceText, fallback = "—" }: { name: string | null; sourceText: string; fallback?: string }) {
+  const supplier = normalizeSupplierName(name, sourceText);
+  return <span className="inline-flex flex-wrap items-center gap-2">
+    <span>{supplier.name ?? fallback}</span>
+    {supplier.isFictitious && <span className="rounded-sm bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">Fictitious</span>}
+  </span>;
+}
+
+function ComparisonTable({ ranked, reference, slots }: { ranked: QuoteAnalysis[]; reference: RfqReference; slots: QuoteSlot[] }) {
   const yn = (b: boolean | null) => (b === null ? "—" : b ? "Yes" : "No");
   const rows: { label: string; mono?: boolean; strong?: boolean; get: (a: QuoteAnalysis) => ReactNode }[] = [
-    { label: "Supplier", get: (a) => a.quote.supplier_name ?? "—" },
+    { label: "Supplier", get: (a) => <SupplierName name={a.quote.supplier_name} sourceText={slots[a.index]?.text ?? ""} /> },
     { label: "Quote id", mono: true, get: (a) => a.quote.quote_id ?? "—" },
     { label: "PN", mono: true, get: (a) => a.quote.part_number ?? "—" },
     { label: "Revision", mono: true, get: (a) => a.quote.revision ?? "—" },
@@ -337,7 +346,7 @@ function ComparisonTable({ ranked, reference }: { ranked: QuoteAnalysis[]; refer
   );
 }
 
-function RankCard({ a, reference, best }: { a: QuoteAnalysis; reference: RfqReference; best: boolean }) {
+function RankCard({ a, reference, best, sourceText }: { a: QuoteAnalysis; reference: RfqReference; best: boolean; sourceText: string }) {
   const [email, setEmail] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   return (
@@ -347,7 +356,7 @@ function RankCard({ a, reference, best }: { a: QuoteAnalysis; reference: RfqRefe
           <div className={`text-xs font-semibold uppercase tracking-wide ${best ? "text-primary" : "text-muted-foreground"}`}>
             Rank #{a.rank}{best ? " — lowest annual cost" : ""}
           </div>
-          <div className="mt-1 font-semibold">{a.quote.supplier_name ?? "Unknown supplier"}</div>
+          <div className="mt-1 font-semibold"><SupplierName name={a.quote.supplier_name} sourceText={sourceText} fallback="Unknown supplier" /></div>
           <div className="font-mono text-xs text-muted-foreground">{a.quote.quote_id ?? "—"}</div>
         </div>
         <Pill className={riskColor[a.risk]}>{a.risk} risk</Pill>
@@ -365,7 +374,7 @@ function RankCard({ a, reference, best }: { a: QuoteAnalysis; reference: RfqRefe
         ))}
       </ul>
       <div className="mt-4 flex-1" />
-      <button onClick={() => setEmail(draftClarificationEmail(a, reference))} className="mt-2 rounded border border-border px-4 py-2 text-sm font-medium hover:border-primary">
+      <button onClick={() => setEmail(draftClarificationEmail(a, reference, sourceText))} className="mt-2 rounded border border-border px-4 py-2 text-sm font-medium hover:border-primary">
         Draft clarification email
       </button>
       {email !== null && (

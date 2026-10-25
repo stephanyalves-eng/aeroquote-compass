@@ -78,9 +78,9 @@ describe("risk and ranking", () => {
     const cheapBad = analyzeQuote({ ...base, unit_price: 500, revision: "B" }, ref, 0);
     const pricey = analyzeQuote({ ...base, unit_price: 900 }, ref, 1);
     const r = rankQuotes([pricey, cheapBad]);
-    expect(r[0].index).toBe(0);
-    expect(r[0].rank).toBe(1);
-    expect(r[0].awardable).toBe(false);
-    expect(r[1].awardable).toBe(true);
+    expect(r[0]?.index).toBe(0);
+    expect(r[0]?.rank).toBe(1);
+    expect(r[0]?.awardable).toBe(false);
+    expect(r[1]?.awardable).toBe(true);
   });
 });
