@@ -56,12 +56,23 @@ export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intel
   }
   const { jsPDF } = await import("jspdf"); const { default: autoTable } = await import("jspdf-autotable");
   const pdf = new jsPDF({ orientation: "landscape" });
-  const table = (title: string, head: string[], rows: string[][]) => { pdf.setFontSize(16); pdf.text(ascii(title), 14, 18); autoTable(pdf, { startY: 25, head: [head.map(ascii)], body: rows.map((r) => r.map(ascii)), styles: { fontSize: 8 }, theme: "grid" }); };
-  table("AeroQuote Compass | RFQ Information", ["Field", "Value"], Object.entries(ref).map(([k, v]) => [REF_LABELS[k] ?? k, refValue(k, v)]));
+  // SIGNAL & STRUCTURE print palette: deep forest band, sunken table headers, ink body, default borders.
+  const forest: [number, number, number] = [11, 48, 43];
+  const ivory: [number, number, number] = [245, 244, 236];
+  const ink: [number, number, number] = [16, 23, 20];
+  const sunken: [number, number, number] = [232, 233, 229];
+  const line: [number, number, number] = [214, 216, 210];
+  const signal: [number, number, number] = [53, 213, 138];
+  const series: [number, number, number] = [30, 82, 70];
+  const totalPages = () => pdf.getNumberOfPages();
+  const finish = () => { for (let p = 1; p <= totalPages(); p++) { pdf.setPage(p); pdf.setFontSize(7); pdf.setTextColor(...ink); pdf.text("Stephany Alves · SIGNAL & STRUCTURE · Synthetic data", 14, 205); } };
+  const band = (title: string) => { pdf.setFillColor(...forest); pdf.rect(0, 0, 297, 16, "F"); pdf.setTextColor(...ivory); pdf.setFontSize(10); pdf.text("AeroQuote Compass", 14, 10.5); pdf.setTextColor(...ink); pdf.setFontSize(16); pdf.text(ascii(title), 14, 28); };
+  const table = (title: string, head: string[], rows: string[][]) => { band(title); autoTable(pdf, { startY: 35, head: [head.map(ascii)], body: rows.map((r) => r.map(ascii)), styles: { fontSize: 8, textColor: ink, lineColor: line, lineWidth: 0.1 }, headStyles: { fillColor: sunken, textColor: ink }, theme: "grid" }); };
+  table("RFQ Information", ["Field", "Value"], Object.entries(ref).map(([k, v]) => [REF_LABELS[k] ?? k, refValue(k, v)]));
   pdf.addPage(); table("Supplier Comparison | USD", ["Supplier", "Original price", "Annual material", "Annual landed", "Overall score", "Risk"], list.map((a) => [a.name, `${a.baseline.quote.currency} ${value(a.baseline.quote.unit_price)}`, usd(a.material), `${usd(a.annualLanded)}${a.estimated ? " (Estimated)" : ""}${a.incomplete ? " (Incomplete)" : ""}`, score1(a.score), a.risk]));
-  pdf.addPage(); pdf.text("Annual Landed Cost by Supplier | USD", 14, 18);
+  pdf.addPage(); band("Annual Landed Cost by Supplier | USD");
   const max = Math.max(...list.map((a) => a.annualLanded ?? 0), 1);
-  list.forEach((a, i) => { const y = 34 + i * 7; pdf.setFontSize(9); pdf.text(ascii(a.name.slice(0, 35)), 14, y); pdf.rect(85, y - 4, Math.max(0.5, (a.annualLanded ?? 0) / max * 140), 4); pdf.text(usd(a.annualLanded), 230, y); });
+  list.forEach((a, i) => { const y = 44 + i * 7; pdf.setFontSize(9); pdf.setTextColor(...ink); pdf.text(ascii(a.name.slice(0, 35)), 14, y); pdf.setFillColor(...(a.name === insights.recommended?.name ? signal : series)); pdf.rect(85, y - 4, Math.max(0.5, (a.annualLanded ?? 0) / max * 140), 4, "F"); pdf.text(usd(a.annualLanded), 230, y); });
   pdf.addPage(); table("Supplier Score | Transparent Contributions", ["Supplier", "Criterion", "Weight", "Score", "Contribution", "Formula"], list.flatMap((a) => a.contributions.map((c) => [a.name, CRITERIA[c.key], `${weights[c.key]}%`, score1(c.value), score1(c.weighted), c.reason])));
   pdf.addPage(); table("Risk Assessment & Quote Anomalies", ["Supplier", "Risk", "Severity", "Observation"], list.flatMap((a) => a.anomalies.map((x) => [a.name, a.risk, x.critical ? "Critical" : "Warning", x.message])));
   pdf.addPage(); table("Procurement Recommendation & Decision Impact", ["Metric", "Value"], [
@@ -70,5 +81,6 @@ export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intel
     ["Why this supplier?", insights.why ?? "Resolve critical / incomplete data before an award recommendation."],
     ["Key trade-offs", insights.recommended ? `Cost premium vs lowest quote: USD ${usd(insights.difference)}; lead time: ${days(insights.recommended.baseline.quote.lead_time_days)}; payment terms: ${days(insights.recommended.baseline.quote.payment_terms_days)}; risk: ${insights.recommended.risk}; estimated logistics: ${insights.recommended.estimated}.` : "Not provided"],
   ]);
+  finish();
   pdf.save(`${filename}-analysis.pdf`);
 }
