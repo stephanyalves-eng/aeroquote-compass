@@ -33,5 +33,9 @@ export function sameSupplier(a: string | null | undefined, b: string | null | un
     .replace(/\s+/g, " ")
     .trim();
   const x = strip(a), y = strip(b);
-  return Boolean(x && y && (x === y || x.includes(y) || y.includes(x)));
+  if (!x || !y) return false;
+  if (x === y) return true;
+  // Containment at word level: every word of the shorter name must appear in the other.
+  const xw = x.split(" "), yw = y.split(" ");
+  return xw.every((w) => yw.includes(w)) || yw.every((w) => xw.includes(w));
 }
