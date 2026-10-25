@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { extractQuote } from "@/lib/rfq/extract.functions";
 import { saveHistory } from "@/lib/rfq/history.functions";
 import { SAMPLE_QUOTES } from "@/lib/rfq/samples";
-import { newReference, referenceErrors, canCompare, quoteErrors, MAX_FILES, type QuoteDocument, type RfqStatus } from "@/lib/rfq/workflow";
+import { newReference, referenceErrors, canCompare, quoteErrors, MAX_FILES, localToday, extractQueue, type QuoteDocument, type RfqStatus } from "@/lib/rfq/workflow";
 import { readQuoteFile } from "@/lib/rfq/files";
 import { compareDocuments, decisionInsights, DEFAULT_WEIGHTS } from "@/lib/rfq/intelligence";
 import { Setup } from "@/components/rfq/setup";
@@ -38,14 +38,14 @@ function Index() {
   const [savedId, setSavedId] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
   const extract = useServerFn(extractQuote); const save = useServerFn(saveHistory);
-  useEffect(() => setReference((r) => ({ ...r, today: r.today || new Date().toISOString().slice(0, 10) })), []);
+  useEffect(() => setReference((r) => ({ ...r, today: r.today || localToday() })), []);
   const validReference = referenceErrors(reference).length === 0;
   const ready = canCompare(documents, reference);
   const results = useMemo(() => ready ? compareDocuments(documents, reference, weights) : [], [documents, reference, weights, ready]);
   const patch = (id: string, update: Partial<QuoteDocument>) => setDocuments((ds) => ds.map((d) => d.id === id ? { ...d, ...update } : d));
   const edit = (id: string, q: ExtractedQuote) => { patch(id, { reviewed: q, confirmed: false, status: "Needs Review" }); setStatus("Draft"); };
   const loadSamples = () => {
-    setReference((r) => ({ ...r, rfqNumber: "RFQ-24410", partNumber: "PN-45Y1258", revision: "C", annualVolume: 12, description: "Hydraulic actuator Y8", category: "Hydraulic systems", requiredDeliveryDate: "", deliveryLocation: "São José dos Campos", incumbentSupplier: "", targetCost: null }));
+    setReference((r) => ({ ...r, rfqNumber: "RFQ-24410", partNumber: "PN-45Y1258", revision: "C", annualVolume: 12, description: "Hydraulic actuator Y8", category: "Hydraulic systems", requiredDeliveryDate: "2027-03-15", deliveryLocation: "São José dos Campos", incumbentSupplier: "Meridian Flight Components LLC", targetCost: null }));
     setDocuments(SAMPLE_QUOTES.map((text, i) => ({ id: crypto.randomUUID(), text, fileName: ["atlas-quote.txt", "helix-quote.txt", "polar-quote.txt", "meridian-quote.txt"][i] ?? `sample-${i}.txt`, fileType: "txt", status: "Ready", confirmed: false })));
     setStep(1); setHistory(false); setStatus("Draft"); setSavedId(undefined); setNotice("");
   };
@@ -60,8 +60,13 @@ function Index() {
   const process = async (id?: string) => {
     if (processing.current) return;
     if (!validReference) { setNotice(referenceErrors(reference).join(" ")); setStep(0); return; }
+    if (id) {
+      const target = documents.find((d) => d.id === id);
+      if (target?.original && target.reviewed && JSON.stringify(target.original) !== JSON.stringify(target.reviewed)
+        && !window.confirm("Reprocessing will overwrite the buyer's manual edits for this quotation. Continue?")) return;
+    }
     processing.current = true; setBusy(true); setStatus("Analyzing"); setNotice("");
-    const queue = documents.filter((d) => (id ? d.id === id : !d.confirmed) && (d.text.trim() || d.pdfBase64) && d.status !== "Uploading");
+    const queue = extractQueue(documents, id);
     let failed = false;
     try {
       // Sequential requests avoid overwhelming the shared AI rate limit.
@@ -70,7 +75,9 @@ function Index() {
         try {
           const r = await extract({ data: { text: d.text, pdfBase64: d.pdfBase64, today: reference.today, fileName: d.fileName } });
           if (!r.quote || r.error) { patch(d.id, { status: "Error", error: r.error ?? "Extraction failed." }); failed = true; if (/credits|blocked|configured/i.test(r.error ?? "")) break; }
-          else patch(d.id, { original: structuredClone(r.quote), reviewed: structuredClone(r.quote), status: "Needs Review", confirmed: false });
+          else patch(d.id, { original: structuredClone(r.quote), reviewed: structuredClone(r.quote), status: "Needs Review", confirmed: false,
+            // PDFs have no raw text; keep a short source text so fictitious-marker detection still works.
+            text: d.text.trim() ? d.text : [r.quote.supplier_name, r.quote.notes].filter(Boolean).join(" — ") });
         } catch { patch(d.id, { status: "Error", error: "Extraction failed. Reprocess this quotation." }); failed = true; }
       }
       if (failed) setNotice("Some quotations could not be extracted. Resolve or remove failed files before comparison.");
@@ -91,7 +98,7 @@ function Index() {
   };
   const open = (id: string, snapshot: Snapshot, storedStatus: RfqStatus) => { setReference(snapshot.reference); setDocuments(snapshot.documents); setWeights(snapshot.weights); setStatus(storedStatus); setSavedId(id); setHistory(false); setStep(canCompare(snapshot.documents, snapshot.reference) ? 3 : 0); setNotice(""); };
   return <div className="min-h-screen bg-background text-foreground">
-    <header className="bg-petrol text-petrol-foreground"><div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-5 px-5 py-5 sm:px-8"><div className="flex items-center gap-3"><Compass className="size-9 text-mint" strokeWidth={1.4} /><div><h1 className="text-xl font-semibold">AeroQuote Compass</h1><p className="mt-0.5 text-xs opacity-80">Strategic Procurement · Supplier Quotation Intelligence</p></div></div><div className="flex gap-2"><Button variant="ghost" className="text-petrol-foreground hover:bg-petrol hover:text-mint" disabled={busy} onClick={() => { setHistory(!history); setNotice(""); }}><HistoryIcon />RFQ History</Button><Button variant="ghost" className="text-petrol-foreground hover:bg-petrol hover:text-mint" disabled={busy} onClick={() => { setReference({ ...newReference(), today: new Date().toISOString().slice(0, 10) }); setDocuments([]); setSavedId(undefined); setStep(0); setHistory(false); setStatus("Draft"); setNotice(""); }}><Plus />New RFQ</Button></div></div></header>
+    <header className="bg-petrol text-petrol-foreground"><div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-5 px-5 py-5 sm:px-8"><div className="flex items-center gap-3"><Compass className="size-9 text-mint" strokeWidth={1.4} /><div><h1 className="text-xl font-semibold">AeroQuote Compass</h1><p className="mt-0.5 text-xs opacity-80">Strategic Procurement · Supplier Quotation Intelligence</p></div></div><div className="flex gap-2"><Button variant="ghost" className="text-petrol-foreground hover:bg-petrol hover:text-mint" disabled={busy} onClick={() => { setHistory(!history); setNotice(""); }}><HistoryIcon />RFQ History</Button><Button variant="ghost" className="text-petrol-foreground hover:bg-petrol hover:text-mint" disabled={busy} onClick={() => { setReference({ ...newReference(), today: localToday() }); setDocuments([]); setSavedId(undefined); setStep(0); setHistory(false); setStatus("Draft"); setNotice(""); }}><Plus />New RFQ</Button></div></div></header>
     <div className="border-b border-border bg-muted"><div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-8"><div className="flex items-center gap-3"><span className="font-mono text-xs">{reference.rfqNumber || "NEW RFQ"}</span><Status>{status}</Status></div><div className="flex items-center gap-2"><select aria-label="RFQ status" className={`${control} py-1 text-xs`} value={status} disabled={busy || (!ready && status === "Draft")} onChange={(e) => setStatus(e.target.value as RfqStatus)}>{["Draft", "Analyzing", "Completed", "Under Negotiation", "Awarded"].map((x) => <option key={x} disabled={x !== "Draft" && x !== "Analyzing" && !ready}>{x}</option>)}</select><Button variant="outline" size="sm" disabled={saving || busy} onClick={saveCurrent}><Save />{saving ? "Saving…" : "Save RFQ"}</Button></div></div></div>
     {!history && <nav aria-label="Analysis steps" className="mx-auto grid max-w-[1500px] grid-cols-2 border-b border-border px-5 sm:grid-cols-4 sm:px-8">{steps.map((label, i) => <Button key={label} variant="ghost" disabled={busy || (i === 3 && !ready)} onClick={() => { setStep(i); setNotice(""); }} className={`h-auto justify-start rounded-none border-b-2 px-2 py-5 text-xs sm:text-sm ${step === i ? "border-petrol font-semibold text-foreground" : "border-transparent text-muted-foreground"}`}><span className="font-mono text-xs">0{i + 1}</span>{label}{i < step && <Check className="size-3" />}</Button>)}</nav>}
     <main className="mx-auto max-w-[1500px] space-y-8 px-5 py-8 sm:px-8">

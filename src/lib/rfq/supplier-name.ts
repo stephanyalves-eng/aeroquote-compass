@@ -21,3 +21,21 @@ export function normalizeSupplierName(name: string | null | undefined, sourceTex
   }).join(" ");
   return { name: normalized || null, isFictitious };
 }
+
+const legalSuffix = /\b(inc|llc|sa|ltda|gmbh)\b\.?/gi;
+/** Loose supplier identity: normalized, case-insensitive, ignoring legal suffixes and punctuation; containment counts as a match. */
+export function sameSupplier(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a?.trim() || !b?.trim()) return false;
+  const strip = (s: string) => (normalizeSupplierName(s).name ?? s)
+    .toLowerCase()
+    .replace(legalSuffix, " ")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const x = strip(a), y = strip(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  // Containment at word level: every word of the shorter name must appear in the other.
+  const xw = x.split(" "), yw = y.split(" ");
+  return xw.every((w) => yw.includes(w)) || yw.every((w) => xw.includes(w));
+}
