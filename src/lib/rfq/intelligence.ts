@@ -1,5 +1,5 @@
 import { analyzeQuote, daysBetween, toUsd } from "./rules";
-import { normalizeSupplierName } from "./supplier-name";
+import { normalizeSupplierName, sameSupplier } from "./supplier-name";
 import { averageConfidence } from "./workflow";
 import type { QuoteDocument } from "./workflow";
 import type { QuoteAnalysis, RfqReference } from "./types";
@@ -7,7 +7,7 @@ import type { QuoteAnalysis, RfqReference } from "./types";
 export const DEFAULT_WEIGHTS = { cost: 40, leadTime: 20, risk: 15, payment: 10, compliance: 10, commercial: 5 };
 export type Weights = typeof DEFAULT_WEIGHTS;
 export const CRITERIA: Record<keyof Weights, string> = { cost: "Total Cost", leadTime: "Lead Time", risk: "Supplier Risk", payment: "Payment Terms", compliance: "Certification / Compliance", commercial: "Commercial Conditions" };
-export const validWeights = (w: Weights) => Object.values(w).every((v) => Number.isFinite(v) && v >= 0 && v <= 100) && Object.values(w).reduce((a, b) => a + b, 0) === 100;
+export const validWeights = (w: Weights) => Object.values(w).every((v) => Number.isFinite(v) && v >= 0 && v <= 100) && Math.abs(Object.values(w).reduce((a, b) => a + b, 0) - 100) <= 0.01;
 export interface Intelligence {
   document: QuoteDocument;
   baseline: QuoteAnalysis;
@@ -43,7 +43,10 @@ export function landedAnalysis(document: QuoteDocument, ref: RfqReference, index
   const combinedEstimate = freight === null && insurance === null ? baseline.freightUsd : null;
   const duties = convert(q.duties), other = convert(q.other_adders);
   const estimated = combinedEstimate !== null && combinedEstimate > 0;
-  const incomplete = (freight == null && insurance == null && combinedEstimate == null) || ((freight == null) !== (insurance == null));
+  // Quoting only freight or only insurance is a non-critical warning, not a blocker.
+  const partialLogistics = (freight == null) !== (insurance == null);
+  // Eligibility is blocked only when there is no logistics information at all AND the Incoterm adder cannot be applied.
+  const incomplete = freight == null && insurance == null && combinedEstimate == null;
   const annualLanded = baseline.annualGoodsUsd == null ? null : baseline.annualGoodsUsd + (freight ?? 0) + (insurance ?? 0) + (combinedEstimate ?? 0) + (duties ?? 0) + (other ?? 0) + baseline.oneTimeUsd;
   const insufficient = !q.certifications.length || q.lead_time_days == null || !q.validity_end_date || !q.part_number || !q.revision;
   const mismatch = Boolean(q.part_number && q.part_number.trim().toUpperCase() !== ref.partNumber.trim().toUpperCase());
@@ -52,8 +55,9 @@ export function landedAnalysis(document: QuoteDocument, ref: RfqReference, index
   const risk = baseline.risk === "High" || mismatch ? "High" : insufficient ? "Insufficient data" : baseline.risk === "Medium" || late || q.commercial_exceptions || (confidence != null && confidence < 70) || incomplete ? "Medium" : "Low";
   const anomalies = baseline.alerts.map((a) => ({ message: a.message, critical: a.severity === "HIGH" }));
   if (mismatch) anomalies.push({ message: `Part number ${q.part_number} does not match ${ref.partNumber}.`, critical: true });
-  if (q.freight == null) anomalies.push({ message: "Freight information is missing; combined Incoterm adder shown separately when available.", critical: false });
-  if (q.insurance == null) anomalies.push({ message: "Insurance information is missing; no independent insurance charge assumed.", critical: false });
+  if (partialLogistics) anomalies.push({ message: `${q.insurance == null ? "Insurance" : "Freight"} not quoted; landed cost may be understated.`, critical: false });
+  if (!partialLogistics && q.freight == null) anomalies.push({ message: "Freight information is missing; combined Incoterm adder shown separately when available.", critical: false });
+  if (!partialLogistics && q.insurance == null) anomalies.push({ message: "Insurance information is missing; no independent insurance charge assumed.", critical: false });
   if (late) anomalies.push({ message: "Quoted lead time exceeds the required delivery date.", critical: false });
   if (!q.country_of_origin) anomalies.push({ message: "Country of origin not provided; country risk not assessed.", critical: false });
   if (q.commercial_exceptions) anomalies.push({ message: `Commercial exceptions: ${q.commercial_exceptions}`, critical: false });
