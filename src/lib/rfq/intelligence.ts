@@ -113,7 +113,7 @@ export function compareDocuments(documents: QuoteDocument[], ref: RfqReference, 
       // Missing values are not votes; a strict majority must exceed half the known values.
       a.anomalies.push({ message: count > all.length / 2
         ? message(q[key], mode)
-        : `${label === "payment terms" ? "Payment terms of" : "Uses"} ${q[key]}${unit} ${label === "payment terms" ? "differ" : "differs"} from the most common ${label} among peers (${mode}${unit}, ${count} of ${all.length}).`, critical: false });
+        : `${label === "payment terms" ? "Payment terms of" : label === "Incoterm" ? "Incoterm" : "Currency"} ${q[key]}${unit} ${label === "payment terms" ? "differ" : "differs"} from the most common ${label} among peers (${mode}${unit}, ${count} of ${all.length}).`, critical: false });
     }
     const moqs = list.filter((b) => b !== a).map((b) => b.baseline.quote.moq).filter((x): x is number => x != null && x > 0);
     const avgMoq = moqs.length ? moqs.reduce((s, v) => s + v, 0) / moqs.length : null;

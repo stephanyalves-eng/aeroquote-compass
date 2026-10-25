@@ -79,8 +79,8 @@ describe("AeroQuote deterministic rules", () => {
     expect(list.find((a) => a.name === "B LLC")?.contributions.find((c) => c.key === "cost")?.value).toBe(0);
   });
   it.each([
-    ["incoterm", ["EXW", "EXW", "FCA", "DAP"], "Uses FCA differs from the most common Incoterm among peers (EXW, 2 of 4)."],
-    ["currency", ["USD", "USD", "EUR", "BRL"], "Uses EUR differs from the most common currency among peers (USD, 2 of 4)."],
+    ["incoterm", ["EXW", "EXW", "FCA", "DAP"], "Incoterm FCA differs from the most common Incoterm among peers (EXW, 2 of 4)."],
+    ["currency", ["USD", "USD", "EUR", "BRL"], "Currency EUR differs from the most common currency among peers (USD, 2 of 4)."],
     ["payment_terms_days", [60, 60, 30, 90], "Payment terms of 30 days differ from the most common payment terms among peers (60 days, 2 of 4)."],
   ] as const)("describes a %s plurality without claiming most suppliers", (key, values, expected) => {
     const list = compareDocuments(values.map((v, i) => doc({ supplier_name: `Supplier ${i}`, [key]: v })), ref, DEFAULT_WEIGHTS);
