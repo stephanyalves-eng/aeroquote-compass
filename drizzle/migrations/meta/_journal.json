@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792966681269,
+      "tag": "0000_create_rfq_history",
+      "breakpoints": true
+    }
+  ]
+}

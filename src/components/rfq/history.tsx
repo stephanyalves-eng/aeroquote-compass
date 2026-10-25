@@ -1,0 +1,20 @@
+import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
+import { listHistory } from "@/lib/rfq/history.functions";
+import type { RfqReference } from "@/lib/rfq/types";
+import type { QuoteDocument, RfqStatus } from "@/lib/rfq/workflow";
+import type { Weights } from "@/lib/rfq/intelligence";
+import { Button } from "@/components/ui/button";
+import { Section, Status, Money } from "./primitives";
+export interface Snapshot { reference: RfqReference; documents: QuoteDocument[]; weights: Weights; summary?: { supplier: string | null; landed: number | null; savings: number | null } }
+export function History({ onOpen }: { onOpen: (id: string, snapshot: Snapshot, status: RfqStatus) => void }) {
+  const load = useServerFn(listHistory); const [rows, setRows] = useState<Awaited<ReturnType<typeof load>>>([]); const [signedIn, setSignedIn] = useState(false); const [error, setError] = useState(""); const [loading, setLoading] = useState(true);
+  useEffect(() => { let active = true; supabase.auth.getSession().then(async ({ data }) => { if (!active) return; setSignedIn(Boolean(data.session)); if (data.session) { try { const result = await load(); if (active) setRows(result); } catch { if (active) setError("Could not load RFQ history."); } } if (active) setLoading(false); }); return () => { active = false; }; }, [load]);
+  const signIn = async (provider: "google" | "lovable") => { const result = await lovable.auth.signInWithOAuth(provider, { redirect_uri: window.location.origin }); if (result.error) setError("Sign-in could not be completed."); else if (!result.redirected) { setSignedIn(true); try { setRows(await load()); } catch { setError("Could not load RFQ history."); } } };
+  return <Section title="RFQ History" action={<Status>Private workspace</Status>}>
+    {loading ? <p className="text-sm text-muted-foreground">Loading history…</p> : !signedIn ? <div className="space-y-4"><p className="text-sm text-muted-foreground">Sign in to save and reopen your RFQ analyses.</p><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => signIn("google")}>Continue with Google</Button><Button variant="outline" onClick={() => signIn("lovable")}>Continue with Lovable</Button></div></div> : !rows.length ? <p className="text-sm text-muted-foreground">No saved RFQs.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="bg-muted text-xs text-muted-foreground"><tr>{["RFQ Number", "Part Number", "Date", "Suppliers", "Recommended Supplier", "Annual Landed Cost", "Potential Savings", "Status", ""].map((x, i) => <th key={i} className="px-3 py-3 font-medium">{x}</th>)}</tr></thead><tbody>{rows.map((row) => { const snapshot = row.snapshot as unknown as Snapshot; return <tr key={row.id} className="border-b border-border"><td className="px-3 py-4 font-mono text-xs">{row.rfq_number}</td><td className="px-3 py-4 font-mono text-xs">{row.part_number}</td><td className="px-3 py-4 text-xs">{row.updated_at.slice(0, 10)}</td><td className="px-3 py-4">{snapshot.documents?.length ?? 0}</td><td className="px-3 py-4">{snapshot.summary?.supplier ?? "Not provided"}</td><td className="px-3 py-4"><Money value={snapshot.summary?.landed} /></td><td className="px-3 py-4"><Money value={snapshot.summary?.savings} /></td><td className="px-3 py-4"><Status>{row.status}</Status></td><td className="px-3 py-4"><Button variant="outline" size="sm" onClick={() => onOpen(row.id, snapshot, row.status as RfqStatus)}>Open analysis</Button></td></tr>; })}</tbody></table></div>}
+    {error && <p className="text-sm text-bad">{error}</p>}
+  </Section>;
+}

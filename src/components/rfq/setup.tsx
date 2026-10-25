@@ -1,0 +1,14 @@
+import { Field, control, Section } from "./primitives";
+import type { RfqReference } from "@/lib/rfq/types";
+export function Setup({ reference: r, onChange }: { reference: RfqReference; onChange: (r: RfqReference) => void }) {
+  const text = (key: keyof RfqReference, label: string, type = "text") => <Field key={key} label={label}><input className={control} type={type} value={String(r[key] ?? "")} onChange={(e) => onChange({ ...r, [key]: e.target.value })} /></Field>;
+  const num = (key: "annualVolume" | "usdBrl" | "eurBrl" | "targetCost", label: string, step = "1") => <Field key={key} label={label}><input className={control} type="number" min="0" step={step} value={r[key] == null || !Number.isFinite(r[key]) ? "" : r[key]} onChange={(e) => onChange({ ...r, [key]: e.target.value === "" ? key === "targetCost" ? null : NaN : Number(e.target.value) })} /></Field>;
+  return <><Section title="RFQ Setup" subtitle={r.rfqNumber || "New sourcing analysis"}><div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+    {text("rfqNumber", "RFQ Number *")}{text("partNumber", "Requested Part Number *")}{text("revision", "Requested Revision *")}{num("annualVolume", "Annual Volume (units) *")}
+    <div className="sm:col-span-2">{text("description", "RFQ Description")}</div>{text("category", "Commodity / Category")}{text("requiredCertification", "Required Certification *")}
+    {text("requiredDeliveryDate", "Required Delivery Date", "date")}{text("deliveryLocation", "Delivery Location")}{text("incumbentSupplier", "Current / Incumbent Supplier")}{num("targetCost", "Annual Target Cost (RFQ currency)", "0.01")}
+    <Field label="Currency"><select className={control} value={r.currency ?? "USD"} onChange={(e) => onChange({ ...r, currency: e.target.value as "USD" | "EUR" | "BRL" })}>{["USD", "EUR", "BRL"].map((x) => <option key={x}>{x}</option>)}</select></Field>
+    {num("usdBrl", "USD/BRL *", "0.0001")}{num("eurBrl", "EUR/BRL *", "0.0001")}{text("today", "Today's Date *", "date")}
+  </div><p className="text-xs text-muted-foreground">EUR to USD = EUR/BRL ÷ USD/BRL = {(r.eurBrl / r.usdBrl).toFixed(4)}</p></Section>
+  <Section title="Freight & Insurance Adders"><div className="grid grid-cols-2 gap-5 sm:grid-cols-5">{Object.entries(r.incotermAdders).map(([k, v]) => <Field key={k} label={`${k} (%)`}><input className={control} type="number" min="0" step="0.1" value={Number.isFinite(v) ? v : ""} onChange={(e) => onChange({ ...r, incotermAdders: { ...r.incotermAdders, [k]: Number(e.target.value) } })} /></Field>)}</div><p className="text-xs text-muted-foreground">Combined logistics estimate • Quoted freight and insurance remain separate.</p></Section></>;
+}

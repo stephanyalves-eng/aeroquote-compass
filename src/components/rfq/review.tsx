@@ -1,0 +1,24 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Check, RotateCcw } from "lucide-react";
+import { Section, Supplier, Status, control } from "./primitives";
+import { REVIEW_FIELDS, confidenceLevel, quoteErrors, type QuoteDocument } from "@/lib/rfq/workflow";
+import type { ExtractedQuote } from "@/lib/rfq/types";
+export function Review({ documents, onEdit, onConfirm, onReset }: { documents: QuoteDocument[]; onEdit: (id: string, q: ExtractedQuote) => void; onConfirm: (id: string) => void; onReset: (id: string, field: keyof ExtractedQuote) => void }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const d = documents.find((x) => x.id === selected) ?? documents.find((x) => x.original);
+  const [error, setError] = useState("");
+  if (!d?.original || !d.reviewed) return <Section title="Review Extracted Data"><p className="text-sm text-muted-foreground">No extracted quotation available.</p></Section>;
+  const q = d.reviewed;
+  return <Section title="Review Extracted Data" action={<div className="flex flex-wrap gap-2"><select className={control} value={d.id} aria-label="Quote to review" onChange={(e) => { setSelected(e.target.value); setError(""); }}>{documents.filter((x) => x.original).map((x) => <option key={x.id} value={x.id}>{x.fileName}</option>)}</select></div>}>
+    <div className="flex flex-wrap items-center justify-between gap-4"><div className="space-y-2"><Supplier name={q.supplier_name} source={d.text} /><div><Status>{d.confirmed ? "Buyer confirmed" : "Needs Review"}</Status></div></div><Button disabled={quoteErrors(q).length > 0 || d.confirmed} onClick={() => onConfirm(d.id)}><Check />Confirm quotation</Button></div>
+    <div className="overflow-x-auto"><table className="w-full min-w-[750px] text-left text-sm"><thead className="bg-muted text-xs text-muted-foreground"><tr>{["Field", "Original Quote Value", "Reviewed Value", "AI Confidence", "Reset"].map((x) => <th key={x} className="px-3 py-3 font-medium">{x}</th>)}</tr></thead><tbody>{REVIEW_FIELDS.map((f) => {
+      const original = d.original?.[f.key]; const current = q[f.key]; const conf = d.original?.confidence?.[f.key];
+      const display = (v: unknown) => v == null || v === "" || (Array.isArray(v) && !v.length) ? "Not provided" : typeof v === "object" ? JSON.stringify(v) : String(v);
+      const edit = (raw: string) => { try { let v: unknown = raw || null; if (f.kind === "number") v = raw === "" ? null : Number(raw); if (f.kind === "boolean") v = raw === "" ? null : raw === "true"; if (f.kind === "certifications") v = raw.split(",").map((x) => x.trim()).filter(Boolean); if (f.kind === "json") { v = JSON.parse(raw); if (!Array.isArray(v)) throw new Error("Expected an array"); } onEdit(d.id, { ...q, [f.key]: v }); setError(""); } catch { setError(`${f.label}: invalid value.`); } };
+      return <tr key={f.key} className={`border-b border-border ${conf != null && conf < 70 ? "bg-warn/5" : ""}`}><td className="px-3 py-3 text-xs font-medium">{f.label}</td><td className="max-w-72 break-words px-3 py-3 font-mono text-xs text-muted-foreground">{display(original)}</td><td className="min-w-56 px-3 py-3">{f.kind === "boolean" ? <select className={control} aria-label={f.label} value={current == null ? "" : String(current)} onChange={(e) => edit(e.target.value)}><option value="">Not provided</option><option value="true">Yes</option><option value="false">No</option></select> : f.kind === "json" ? <textarea key={`${d.id}-${f.key}-${JSON.stringify(current)}`} className={`${control} font-mono text-xs`} aria-label={f.label} rows={2} defaultValue={JSON.stringify(current ?? [])} onBlur={(e) => edit(e.target.value)} /> : <input className={control} type={f.kind === "number" ? "number" : "text"} min={f.kind === "number" ? 0 : undefined} step="any" aria-label={f.label} placeholder="Not provided" value={f.kind === "certifications" && Array.isArray(current) ? current.join(", ") : current == null ? "" : String(current)} onChange={(e) => edit(e.target.value)} />}</td><td className="px-3 py-3 text-xs"><span className={conf != null && conf < 70 ? "text-warn" : "text-muted-foreground"}>{conf == null ? "Not provided" : `${conf}% · ${confidenceLevel(conf)}`}</span></td><td className="px-3 py-3"><Button variant="ghost" size="icon" title={`Reset ${f.label} to extracted value`} aria-label={`Reset ${f.label}`} onClick={() => onReset(d.id, f.key)}><RotateCcw /></Button></td></tr>;
+    })}</tbody></table></div>
+    {(error || quoteErrors(q).length > 0) && <div className="space-y-1 text-xs text-bad">{error && <p>{error}</p>}{quoteErrors(q).map((x) => <p key={x}>{x}</p>)}</div>}
+    <p className="text-xs text-muted-foreground">AI confidence is self-reported. Original quotation values remain unchanged.</p>
+  </Section>;
+}
