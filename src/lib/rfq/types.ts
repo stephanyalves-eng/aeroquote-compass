@@ -23,6 +23,15 @@ export interface ExtractedQuote {
   new_supplier_requires_qualification: boolean | null;
   surcharge_clause: string | null;
   notes: string | null;
+  moq?: number | null;
+  freight?: number | null; // Annual quoted freight, in quote currency
+  insurance?: number | null; // Annual quoted insurance, in quote currency
+  duties?: number | null;
+  other_adders?: number | null;
+  country_of_origin?: string | null;
+  delivery_location?: string | null;
+  commercial_exceptions?: string | null;
+  confidence?: Record<string, number | null>;
 }
 
 export interface RfqReference {
@@ -35,6 +44,13 @@ export interface RfqReference {
   eurBrl: number;
   incotermAdders: Record<string, number>; // percent, keyed by group
   today: string; // ISO yyyy-mm-dd
+  description?: string;
+  category?: string;
+  requiredDeliveryDate?: string;
+  deliveryLocation?: string;
+  currency?: Currency;
+  incumbentSupplier?: string;
+  targetCost?: number | null; // Annual target in RFQ currency
 }
 
 export type Severity = "HIGH" | "MEDIUM" | "INFO";
