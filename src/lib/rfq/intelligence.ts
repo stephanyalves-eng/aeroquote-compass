@@ -126,11 +126,36 @@ export function compareDocuments(documents: QuoteDocument[], ref: RfqReference, 
   }
   return list;
 }
+function whyRecommended(recommended: Intelligence, list: Intelligence[], eligible: Intelligence[]): string {
+  const traits: string[] = [];
+  const eligibleCosts = eligible.map((a) => a.annualLanded).filter((x): x is number => x != null);
+  if (recommended.annualLanded != null && eligibleCosts.length && recommended.annualLanded === Math.min(...eligibleCosts)) traits.push("the lowest annual landed cost among eligible suppliers");
+  const leads = list.map((a) => a.baseline.quote.lead_time_days).filter((x): x is number => x != null);
+  if (recommended.baseline.quote.lead_time_days != null && leads.length && recommended.baseline.quote.lead_time_days === Math.min(...leads)) traits.push("the shortest lead time");
+  const risks = list.map((a) => a.riskScore).filter((x): x is number => x != null);
+  if (recommended.riskScore != null && risks.length && recommended.riskScore === Math.min(...risks)) traits.push("the lowest risk");
+  const payments = list.map((a) => a.baseline.quote.payment_terms_days).filter((x): x is number => x != null);
+  if (recommended.baseline.quote.payment_terms_days != null && payments.length && recommended.baseline.quote.payment_terms_days === Math.max(...payments)) traits.push("the best payment terms");
+  const parts: string[] = [traits.length
+    ? `${recommended.name} holds ${traits.length > 1 ? `${traits.slice(0, -1).join(", ")} and ${traits[traits.length - 1]}` : traits[0]}, and reaches the highest weighted score among eligible, buyer-confirmed quotations.`
+    : `${recommended.name} reaches the highest weighted score among eligible, buyer-confirmed quotations.`];
+  const costs = list.map((a) => a.annualLanded).filter((x): x is number => x != null);
+  const lowest = costs.length ? Math.min(...costs) : null;
+  if (lowest != null && recommended.annualLanded != null && recommended.annualLanded > lowest) {
+    const cheapest = list.find((a) => a.annualLanded === lowest);
+    if (cheapest && cheapest !== recommended) {
+      const reasons = cheapest.anomalies.filter((x) => x.critical).map((x) => x.message);
+      const cause = reasons.length ? reasons.join(" ") : cheapest.incomplete ? "Logistics information is incomplete and the Incoterm adder cannot be applied." : "It is not awardable.";
+      parts.push(`${cheapest.name} has the lowest annual landed cost but is not awardable: ${cause} Choosing ${recommended.name} adds a premium of USD ${Math.round(recommended.annualLanded - lowest).toLocaleString("en-US")} per year.`);
+    }
+  }
+  return parts.join(" ");
+}
 export function decisionInsights(list: Intelligence[], ref: RfqReference) {
   const eligible = list.filter((a) => a.eligible && a.score != null).sort((a, b) => (b.score ?? 0) - (a.score ?? 0) || (a.annualLanded ?? Infinity) - (b.annualLanded ?? Infinity));
   const recommended = eligible[0] ?? null;
   const costs = list.map((a) => a.annualLanded).filter((x): x is number => x != null);
-  const incumbent = ref.incumbentSupplier ? list.find((a) => a.name.toLowerCase() === normalizeSupplierName(ref.incumbentSupplier).name?.toLowerCase()) : undefined;
+  const incumbent = ref.incumbentSupplier ? list.find((a) => sameSupplier(a.name, ref.incumbentSupplier)) : undefined;
   const target = ref.targetCost == null ? null : toUsd(ref.targetCost, ref.currency ?? "USD", ref);
   const baseline = incumbent?.annualLanded ?? target;
   const savings = baseline == null || recommended?.annualLanded == null ? null : baseline - recommended.annualLanded;
@@ -138,5 +163,6 @@ export function decisionInsights(list: Intelligence[], ref: RfqReference) {
     baseline, baselineLabel: incumbent?.annualLanded != null ? "Incumbent quote" : target != null ? "Annual target cost" : "Not provided",
     savings, reduction: savings == null || baseline == null || baseline === 0 ? null : savings / baseline * 100,
     difference: recommended?.annualLanded == null || !costs.length ? null : recommended.annualLanded - Math.min(...costs),
+    why: recommended ? whyRecommended(recommended, list, eligible) : null,
     costAvoidance: null };
 }
