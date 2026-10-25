@@ -1,5 +1,5 @@
 # AeroQuote Compass
-- [ ] Align Best Overall with eligible recommendation and correct plurality wording; run tests and sample verification.
+- [x] Align Best Overall with eligible recommendation and correct plurality wording; all 78 tests pass and live sample extraction → four confirmations → comparison verifies Atlas badge, unchanged costs and savings.
 - [x] Extend RFQ setup, batch uploads and extraction metadata; preserve legacy rules.
 - [x] Require editable buyer review before calculated comparisons.
 - [x] Add transparent landed costs, scoring, risks, anomalies and recommendations with tests.
