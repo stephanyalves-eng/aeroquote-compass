@@ -20,6 +20,7 @@ one_time_costs (array of {type, amount:number, currency}; e.g. tooling, FAI, NRE
 certifications (array of strings), fai_included (true/false/null), eccn (string or null; null if "to be confirmed"),
 warranty_months (number), new_supplier_requires_qualification (true/false), surcharge_clause (string or null), notes (string or null).
 Also extract moq, freight, insurance, duties, other_adders, country_of_origin, delivery_location, commercial_exceptions.
+If the quotation explicitly says there is no escalation / surcharge clause or no commercial exceptions, set the corresponding field to null; do not turn a negated clause into an exception.
 Freight, insurance, duties and other_adders are annual quoted charges in the quote currency. If an explicitly per-unit charge is given, convert it to an annual amount only if the quotation's annual quantity is explicit. Never estimate shipping or taxes.
 Return confidence as an object with every field name (except confidence itself) mapped to a 0–100 extraction confidence, or null for missing information. Confidence is a self-assessment, not a guarantee.
 Numbers must be plain JSON numbers (convert "16.300,00" to 16300). Missing values must be null (arrays empty), never guessed. Preserve fictitious markers in supplier names. Never calculate costs, scores, rankings or business risk.`;

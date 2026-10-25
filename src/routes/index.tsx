@@ -46,11 +46,11 @@ function Index() {
   const edit = (id: string, q: ExtractedQuote) => { patch(id, { reviewed: q, confirmed: false, status: "Needs Review" }); setStatus("Draft"); };
   const loadSamples = () => {
     setReference((r) => ({ ...r, rfqNumber: "RFQ-24410", partNumber: "PN-45Y1258", revision: "C", annualVolume: 12, description: "Hydraulic actuator Y8", category: "Hydraulic systems", requiredDeliveryDate: "", deliveryLocation: "São José dos Campos", incumbentSupplier: "", targetCost: null }));
-    setDocuments(SAMPLE_QUOTES.map((text, i) => ({ id: crypto.randomUUID(), text, fileName: ["atlas-quote.txt", "helix-quote.txt", "polar-quote.txt"][i] ?? `sample-${i}.txt`, fileType: "txt", status: "Ready", confirmed: false })));
+    setDocuments(SAMPLE_QUOTES.map((text, i) => ({ id: crypto.randomUUID(), text, fileName: ["atlas-quote.txt", "helix-quote.txt", "polar-quote.txt", "meridian-quote.txt"][i] ?? `sample-${i}.txt`, fileType: "txt", status: "Ready", confirmed: false })));
     setStep(1); setHistory(false); setStatus("Draft"); setSavedId(undefined); setNotice("");
   };
   const files = async (incoming: File[]) => {
-    if (processing.current) return;
+    if (processing.current || documents.some((d) => d.status === "Uploading")) return;
     const capacity = MAX_FILES - documents.length;
     if (incoming.length > capacity) { setNotice(`A maximum of ${MAX_FILES} files is allowed per RFQ. No files added.`); return; }
     const added: QuoteDocument[] = incoming.map((f) => ({ id: crypto.randomUUID(), text: "", fileName: f.name, fileType: f.name.split(".").pop()?.toLowerCase() ?? "", status: "Uploading", confirmed: false }));
@@ -84,7 +84,7 @@ function Index() {
     setSaving(true);
     try {
       const insight = decisionInsights(results, reference);
-      const snapshot: Snapshot = { reference, documents: documents.map((d) => ({ ...d, pdfBase64: undefined })), weights, summary: { supplier: insight.recommended?.name ?? null, landed: insight.recommended?.annualLanded ?? null, savings: insight.savings } };
+      const snapshot: Snapshot = { reference, documents, weights, summary: { supplier: insight.recommended?.name ?? null, landed: insight.recommended?.annualLanded ?? null, savings: insight.savings } };
       const result = await save({ data: { ...(savedId ? { id: savedId } : {}), rfqNumber: reference.rfqNumber, partNumber: reference.partNumber, status, snapshot: JSON.stringify(snapshot) } });
       setSavedId(result.id); setNotice("RFQ analysis saved privately.");
     } catch (e) { setNotice(e instanceof Error ? e.message : "Could not save this analysis."); } finally { setSaving(false); }
