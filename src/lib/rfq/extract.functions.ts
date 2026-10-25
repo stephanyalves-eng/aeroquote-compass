@@ -37,7 +37,7 @@ export const extractQuote = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data }): Promise<{ quote: ExtractedQuote | null; error: string | null }> => {
     if (!data.text?.trim() && !data.pdfBase64) return { quote: null, error: "Empty quote." };
-    const apiKey = process.env.LOVABLE_API_KEY;
+    const apiKey = process.env['LOVABLE_API_KEY'];
     if (!apiKey) return { quote: null, error: "AI is not configured." };
     const { createOpenAI } = await import("@ai-sdk/openai");
     const { streamText } = await import("ai");

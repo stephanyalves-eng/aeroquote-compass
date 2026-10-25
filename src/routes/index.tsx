@@ -123,9 +123,9 @@ function Index() {
           <div className="mt-6">
             <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Freight and insurance adder (% of goods value)</div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-              {Object.keys(ref.incotermAdders).map((k) => (
+              {Object.entries(ref.incotermAdders).map(([k, value]) => (
                 <Field key={k} label={k}>
-                  <NumInput step="0.1" value={ref.incotermAdders[k]} onChange={(v) => setRef({ ...ref, incotermAdders: { ...ref.incotermAdders, [k]: v } })} />
+                  <NumInput step="0.1" value={value} onChange={(v) => setRef({ ...ref, incotermAdders: { ...ref.incotermAdders, [k]: v } })} />
                 </Field>
               ))}
             </div>
@@ -227,7 +227,7 @@ function NumInput({ value, onChange, step = "1" }: { value: number; onChange: (v
   return <input type="number" step={step} value={Number.isFinite(value) ? value : ""} onChange={(e) => onChange(parseFloat(e.target.value))} className={inputCls} />;
 }
 
-function QuoteCard({ index, slot, onChange, onRemove }: { index: number; slot: QuoteSlot; onChange: (p: Partial<QuoteSlot>) => void; onRemove?: () => void }) {
+function QuoteCard({ index, slot, onChange, onRemove }: { index: number; slot: QuoteSlot; onChange: (p: Partial<QuoteSlot>) => void; onRemove?: (() => void) | undefined }) {
   const onFile = (f: File | undefined) => {
     if (!f) return;
     const reader = new FileReader();

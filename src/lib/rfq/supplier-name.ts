@@ -14,7 +14,7 @@ export function normalizeSupplierName(name: string | null | undefined, sourceTex
   const allCaps = cleaned === cleaned.toLocaleUpperCase() && cleaned !== cleaned.toLocaleLowerCase();
   const normalized = cleaned.split(" ").map((word) => {
     const suffix = word.match(suffixPattern);
-    if (suffix) return `${suffix[1].toUpperCase()}${suffix[2]}`;
+    if (suffix) return word.toUpperCase();
     return allCaps
       ? word.toLocaleLowerCase().replace(/(^|[-’'])\p{L}/gu, (letter) => letter.toLocaleUpperCase())
       : word;
