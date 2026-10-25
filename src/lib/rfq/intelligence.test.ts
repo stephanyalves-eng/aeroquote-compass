@@ -71,7 +71,7 @@ describe("AeroQuote deterministic rules", () => {
     const c = list.find((a) => a.name === "C LLC");
     expect(c?.anomalies.some((x) => x.message === "Uses EUR while most suppliers quote USD.")).toBe(true);
     expect(c?.anomalies.some((x) => x.message === "Payment terms of 90 days while most suppliers offer 60 days.")).toBe(true);
-    expect(list.find((a) => a.name === "ACME LLC")?.anomalies.some((x) => x.message.includes("most suppliers"))).toBe(false);
+    expect(list.find((a) => a.name === "Acme LLC")?.anomalies.some((x) => x.message.includes("most suppliers"))).toBe(false);
   });
   it("uses min-max normalisation so the configured cost weight is honoured", () => {
     const list = compareDocuments([doc({ supplier_name: "A LLC", freight: 0, insurance: 0 }), doc({ supplier_name: "B LLC", unit_price: 105, freight: 0, insurance: 0 })], ref, DEFAULT_WEIGHTS);
