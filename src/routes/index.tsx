@@ -23,11 +23,11 @@ export const Route = createFileRoute("/")({
 
 interface QuoteSlot {
   text: string;
-  pdfBase64?: string;
-  fileName?: string;
+  pdfBase64?: string | undefined;
+  fileName?: string | undefined;
   status: "idle" | "loading" | "done" | "error";
-  error?: string;
-  extracted?: ExtractedQuote;
+  error?: string | undefined;
+  extracted?: ExtractedQuote | undefined;
 }
 
 const emptySlot = (): QuoteSlot => ({ text: "", status: "idle" });
