@@ -82,7 +82,7 @@ Anomalies are warnings unless they are critical: price far from the peer average
 
 ## Quality
 
-- 73 automated tests covering FX, price breaks, landed cost, alerts, scoring, anomalies, incumbent matching, supplier name normalization and the sample scenario.
+- 78 automated tests covering FX, price breaks, landed cost, alerts, scoring, anomalies, incumbent matching, supplier name normalization and the sample scenario.
 - End-to-end browser check of the full flow: load samples, extract, confirm, compare, export CSV, Excel and PDF.
 
 ## Stack
