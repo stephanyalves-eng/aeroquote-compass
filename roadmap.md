@@ -1,4 +1,5 @@
 # AeroQuote Compass
+- [ ] Align Best Overall with eligible recommendation and correct plurality wording; run tests and sample verification.
 - [x] Extend RFQ setup, batch uploads and extraction metadata; preserve legacy rules.
 - [x] Require editable buyer review before calculated comparisons.
 - [x] Add transparent landed costs, scoring, risks, anomalies and recommendations with tests.

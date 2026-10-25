@@ -96,18 +96,24 @@ export function compareDocuments(documents: QuoteDocument[], ref: RfqReference, 
       if (Math.abs(difference) >= 15) a.anomalies.push({ message: `Annual landed cost is ${Math.abs(difference).toFixed(1)}% ${difference > 0 ? "above" : "below"} the supplier average (15% threshold).`, critical: false });
     }
     // Revision is excluded: the REVISION alert against the requested revision already covers it.
-    const peerChecks: { key: "currency" | "incoterm" | "payment_terms_days"; message: (v: unknown, mode: unknown) => string }[] = [
-      { key: "currency", message: (v, m) => `Uses ${v} while most suppliers quote ${m}.` },
-      { key: "incoterm", message: (v, m) => `Uses ${v} while most suppliers use ${m}.` },
-      { key: "payment_terms_days", message: (v, m) => `Payment terms of ${v} days while most suppliers offer ${m} days.` },
+    const peerChecks: { key: "currency" | "incoterm" | "payment_terms_days"; label: string; unit: string; message: (v: unknown, mode: unknown) => string }[] = [
+      { key: "currency", label: "currency", unit: "", message: (v, m) => `Uses ${v} while most suppliers quote ${m}.` },
+      { key: "incoterm", label: "Incoterm", unit: "", message: (v, m) => `Uses ${v} while most suppliers use ${m}.` },
+      { key: "payment_terms_days", label: "payment terms", unit: " days", message: (v, m) => `Payment terms of ${v} days while most suppliers offer ${m} days.` },
     ];
-    for (const { key, message } of peerChecks) {
+    for (const { key, label, unit, message } of peerChecks) {
       const all = list.map((b) => b.baseline.quote[key]).filter((x) => x != null);
       if (!all.length) continue;
       const counts = new Map<unknown, number>();
       for (const v of all) counts.set(v, (counts.get(v) ?? 0) + 1);
-      const mode = [...counts.entries()].sort((x, y) => y[1] - x[1])[0]?.[0];
-      if (q[key] != null && mode !== undefined && q[key] !== mode) a.anomalies.push({ message: message(q[key], mode), critical: false });
+      const modeEntry = [...counts.entries()].sort((x, y) => y[1] - x[1])[0];
+      if (!modeEntry || q[key] == null || q[key] === modeEntry[0]) continue;
+      const [mode, count] = modeEntry;
+      // Keep the denominator explicit for pluralities (including the 2-of-4 sample).
+      // Missing values are not votes; a strict majority must exceed half the known values.
+      a.anomalies.push({ message: count > all.length / 2
+        ? message(q[key], mode)
+        : `${label === "payment terms" ? "Payment terms of" : "Uses"} ${q[key]}${unit} ${label === "payment terms" ? "differ" : "differs"} from the most common ${label} among peers (${mode}${unit}, ${count} of ${all.length}).`, critical: false });
     }
     const moqs = list.filter((b) => b !== a).map((b) => b.baseline.quote.moq).filter((x): x is number => x != null && x > 0);
     const avgMoq = moqs.length ? moqs.reduce((s, v) => s + v, 0) / moqs.length : null;

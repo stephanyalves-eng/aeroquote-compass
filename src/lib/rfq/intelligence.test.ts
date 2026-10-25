@@ -78,6 +78,21 @@ describe("AeroQuote deterministic rules", () => {
     expect(list.find((a) => a.name === "A LLC")?.contributions.find((c) => c.key === "cost")?.value).toBe(100);
     expect(list.find((a) => a.name === "B LLC")?.contributions.find((c) => c.key === "cost")?.value).toBe(0);
   });
+  it.each([
+    ["incoterm", ["EXW", "EXW", "FCA", "DAP"], "Uses FCA differs from the most common Incoterm among peers (EXW, 2 of 4)."],
+    ["currency", ["USD", "USD", "EUR", "BRL"], "Uses EUR differs from the most common currency among peers (USD, 2 of 4)."],
+    ["payment_terms_days", [60, 60, 30, 90], "Payment terms of 30 days differ from the most common payment terms among peers (60 days, 2 of 4)."],
+  ] as const)("describes a %s plurality without claiming most suppliers", (key, values, expected) => {
+    const list = compareDocuments(values.map((v, i) => doc({ supplier_name: `Supplier ${i}`, [key]: v })), ref, DEFAULT_WEIGHTS);
+    const outlier = list.find((a) => a.name === "Supplier 2");
+    expect(outlier?.anomalies.some((a) => a.message === expected)).toBe(true);
+    expect(outlier?.anomalies.some((a) => a.message.includes("most suppliers"))).toBe(false);
+  });
+  it("does not treat a tie among known peer values as a majority or count missing values", () => {
+    const list = compareDocuments([doc(), doc({ currency: "EUR" }), doc({ currency: null })], ref, DEFAULT_WEIGHTS);
+    expect(list.flatMap((a) => a.anomalies).some((a) => a.message.includes("most suppliers"))).toBe(false);
+    expect(list.flatMap((a) => a.anomalies).some((a) => a.message.includes("1 of 2"))).toBe(true);
+  });
   it("scores everyone 100 when compared values are equal", () => {
     const list = compareDocuments([doc({ supplier_name: "A LLC" }), doc({ supplier_name: "B LLC" })], ref, DEFAULT_WEIGHTS);
     expect(list.every((a) => a.contributions.find((c) => c.key === "cost")?.value === 100)).toBe(true);
@@ -136,6 +151,14 @@ describe("Sample dataset expectations (today = 2026-10-25)", () => {
     expect(insight.baselineLabel).toBe("Incumbent quote");
     expect(insight.savings).toBeCloseTo(7544, 0);
     expect(insight.reduction).toBeCloseTo(3.2, 1);
+  });
+  it("assigns Best Overall to the eligible recommendation, not the highest raw score", () => {
+    const rawBest = [...list].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
+    expect(rawBest?.name).toBe("Polar Aerospace INC");
+    expect(rawBest?.eligible).toBe(false);
+    expect(insight.recommended?.name).toBe("Atlas Controls INC");
+    expect(insight.recommended?.eligible).toBe(true);
+    expect(decisionInsights(list.filter((a) => !a.eligible), sampleRef).recommended).toBeNull();
   });
   it("never emits a revision peer-difference message", () => {
     expect(list.flatMap((a) => a.anomalies.map((x) => x.message)).some((m) => m.includes("differs from peer"))).toBe(false);
