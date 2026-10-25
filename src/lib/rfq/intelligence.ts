@@ -74,10 +74,20 @@ export function compareDocuments(documents: QuoteDocument[], ref: RfqReference, 
   const costs = list.map((a) => a.annualLanded).filter((x): x is number => x != null);
   const mean = costs.length ? costs.reduce((a, b) => a + b, 0) / costs.length : null;
   const minCost = costs.length ? Math.min(...costs) : null;
+  const maxCost = costs.length ? Math.max(...costs) : null;
   const leads = list.map((a) => a.baseline.quote.lead_time_days).filter((x): x is number => x != null);
   const minLead = leads.length ? Math.min(...leads) : null;
+  const maxLead = leads.length ? Math.max(...leads) : null;
   const payments = list.map((a) => a.baseline.quote.payment_terms_days).filter((x): x is number => x != null);
+  const minPayment = payments.length ? Math.min(...payments) : null;
   const maxPayment = payments.length ? Math.max(...payments) : null;
+  // Min-max normalisation: best value = 100, worst = 0, linear in between; equal values all score 100.
+  const minMax = (v: number | null, min: number | null, max: number | null, lowerIsBetter: boolean): number | null => {
+    if (v == null || min == null || max == null) return null;
+    if (max === min) return 100;
+    const ratio = (v - min) / (max - min);
+    return Math.min(100, Math.max(0, (lowerIsBetter ? 1 - ratio : ratio) * 100));
+  };
   for (const [index, a] of list.entries()) {
     a.costRank = index + 1;
     const q = a.baseline.quote;
@@ -85,22 +95,32 @@ export function compareDocuments(documents: QuoteDocument[], ref: RfqReference, 
       const difference = (a.annualLanded / mean - 1) * 100;
       if (Math.abs(difference) >= 15) a.anomalies.push({ message: `Annual landed cost is ${Math.abs(difference).toFixed(1)}% ${difference > 0 ? "above" : "below"} the supplier average (15% threshold).`, critical: false });
     }
-    for (const key of ["currency", "incoterm", "payment_terms_days", "revision"] as const) {
-      const peers = list.filter((b) => b !== a).map((b) => b.baseline.quote[key]).filter((x) => x != null);
-      if (q[key] != null && peers.some((v) => v !== q[key])) a.anomalies.push({ message: `${key.replaceAll("_", " ")}: ${q[key]} differs from peer quotations.`, critical: false });
+    // Revision is excluded: the REVISION alert against the requested revision already covers it.
+    const peerChecks: { key: "currency" | "incoterm" | "payment_terms_days"; message: (v: unknown, mode: unknown) => string }[] = [
+      { key: "currency", message: (v, m) => `Uses ${v} while most suppliers quote ${m}.` },
+      { key: "incoterm", message: (v, m) => `Uses ${v} while most suppliers use ${m}.` },
+      { key: "payment_terms_days", message: (v, m) => `Payment terms of ${v} days while most suppliers offer ${m} days.` },
+    ];
+    for (const { key, message } of peerChecks) {
+      const all = list.map((b) => b.baseline.quote[key]).filter((x) => x != null);
+      if (!all.length) continue;
+      const counts = new Map<unknown, number>();
+      for (const v of all) counts.set(v, (counts.get(v) ?? 0) + 1);
+      const mode = [...counts.entries()].sort((x, y) => y[1] - x[1])[0]?.[0];
+      if (q[key] != null && mode !== undefined && q[key] !== mode) a.anomalies.push({ message: message(q[key], mode), critical: false });
     }
     const moqs = list.filter((b) => b !== a).map((b) => b.baseline.quote.moq).filter((x): x is number => x != null && x > 0);
     const avgMoq = moqs.length ? moqs.reduce((s, v) => s + v, 0) / moqs.length : null;
     if (q.moq != null && avgMoq != null && (q.moq > avgMoq * 2 || q.moq < avgMoq / 2)) a.anomalies.push({ message: "MOQ differs by more than 2× from the peer average.", critical: false });
     const values: Record<keyof Weights, number | null> = {
-      cost: a.annualLanded == null || minCost == null ? null : a.annualLanded === 0 ? 100 : Math.min(100, minCost / a.annualLanded * 100),
-      leadTime: q.lead_time_days == null || minLead == null ? null : q.lead_time_days === 0 ? 100 : Math.min(100, minLead / q.lead_time_days * 100),
+      cost: minMax(a.annualLanded, minCost, maxCost, true),
+      leadTime: minMax(q.lead_time_days, minLead, maxLead, true),
       risk: a.riskScore == null ? null : 100 - a.riskScore,
-      payment: q.payment_terms_days == null || maxPayment == null ? null : maxPayment === 0 ? 100 : q.payment_terms_days / maxPayment * 100,
+      payment: minMax(q.payment_terms_days, minPayment, maxPayment, false),
       compliance: q.certifications.length ? (a.baseline.alerts.some((x) => x.code === "CERTIFICATION" || x.code === "REVISION") || a.anomalies.some((x) => x.message.startsWith("Part number")) ? 0 : 100) : null,
       commercial: q.payment_terms_days == null || q.warranty_months == null ? null : Math.max(0, 100 - (q.surcharge_clause ? 40 : 0) - (q.commercial_exceptions ? 40 : 0) - (q.one_time_costs.length ? 20 : 0)),
     };
-    const reasons: Record<keyof Weights, string> = { cost: "Lowest peer annual landed cost ÷ supplier annual landed cost × 100", leadTime: "Shortest peer lead time ÷ supplier lead time × 100", risk: "100 − risk score; Low 0, Medium 50, High 100", payment: "Supplier payment days ÷ longest peer payment days × 100", compliance: "100 when required certification, revision and part comply; otherwise 0", commercial: "100 − surcharge 40 − exceptions 40 − separate one-time charges 20" };
+    const reasons: Record<keyof Weights, string> = { cost: "Min-max normalisation across compared suppliers: lowest annual landed cost = 100, highest = 0, linear in between; equal costs score 100", leadTime: "Min-max normalisation: shortest lead time = 100, longest = 0, linear in between; equal lead times score 100", risk: "100 − risk score; Low 0, Medium 50, High 100", payment: "Min-max normalisation: longest payment terms = 100, shortest = 0, linear in between; equal terms score 100", compliance: "100 when required certification, revision and part comply; otherwise 0", commercial: "100 − surcharge 40 − exceptions 40 − separate one-time charges 20" };
     a.contributions = (Object.keys(weights) as (keyof Weights)[]).map((key) => ({ key, value: values[key], weighted: values[key] == null ? null : values[key] * weights[key] / 100, reason: reasons[key] }));
     a.score = validWeights(weights) && a.contributions.every((c) => weights[c.key] === 0 || c.weighted != null) ? a.contributions.reduce((s, c) => s + (c.weighted ?? 0), 0) : null;
   }
