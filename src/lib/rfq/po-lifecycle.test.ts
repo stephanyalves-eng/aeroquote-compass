@@ -259,7 +259,22 @@ describe("PO document and list evidence", () => {
     const { context, state } = issued();
     const doc = buildPoDocument(state, context);
     const text = JSON.stringify([doc?.sections, poProvenance(state, context)]);
-    for (const key of ["unit_price", "supplier_name", "totalValue", "partNumber", "paymentTermsDays", "logisticsEstimate", "approvalReference", "financialImpactUsd", "requires_review", "not_applicable", "undefined", "NaN", "[object Object]"]) expect(text).not.toContain(key);
+    for (const key of [
+      "unit_price",
+      "supplier_name",
+      "totalValue",
+      "partNumber",
+      "paymentTermsDays",
+      "logisticsEstimate",
+      "approvalReference",
+      "financialImpactUsd",
+      "requires_review",
+      "not_applicable",
+      "undefined",
+      "NaN",
+      "[object Object]",
+    ])
+      expect(text).not.toContain(key);
   });
   it("uses actual selected-supplier values and keeps missing logistics separate from combined estimates", () => {
     const { context, state } = issued();

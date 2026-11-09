@@ -80,7 +80,11 @@ function DocumentContent({ doc, zoom = 100 }: { doc: PoDocument; zoom?: number }
                   {s.rows.map((r, i) => (
                     <tr key={i}>
                       {r.map((v, j) => (
-                        <td key={j} data-label={s.columns[j]} className="min-w-24 border-b border-border-subtle p-2">
+                        <td
+                          key={j}
+                          data-label={s.columns[j]}
+                          className="min-w-24 border-b border-border-subtle p-2"
+                        >
                           {v}
                         </td>
                       ))}
