@@ -108,6 +108,26 @@
           }
         }
       }
+    },
+    "project.rfq_recommended_after_supplier_confirmation": {
+      "event_schema_version": 1,
+      "description": "First successfully saved supplier acknowledgement for an RFQ with a current eligible recommendation from buyer-confirmed quotations; updates and amendments do not recount a persisted RFQ. Weekly count uses event_time (recording week), excluding synthetic=true for real RFQs.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "synthetic"
+        ],
+        "properties": {
+          "synthetic": {
+            "type": "boolean"
+          }
+        }
+      }
     }
   }
 }

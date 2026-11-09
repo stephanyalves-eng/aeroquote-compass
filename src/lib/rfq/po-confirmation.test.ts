@@ -54,13 +54,38 @@ describe("Supplier confirmation", () => {
   });
   it("weekly metric does not count updated dates, amendments or reopened RFQs twice", () => {
     const first = recordSupplierConfirmation(fixture().issued, input, time, actor);
-    const audit = [{ id: "metric-1", action: RFQ_CONFIRMED_RECOMMENDATION_EVENT, timestamp: time, actor }];
-    const updated = recordSupplierConfirmation(first, { ...input, expectedDelivery: "2027-03-20" }, time, actor);
+    const audit = [
+      { id: "metric-1", action: RFQ_CONFIRMED_RECOMMENDATION_EVENT, timestamp: time, actor },
+    ];
+    const updated = recordSupplierConfirmation(
+      first,
+      { ...input, expectedDelivery: "2027-03-20" },
+      time,
+      actor,
+    );
     expect(shouldMeasureConfirmedRecommendation(updated, true, audit)).toBe(false);
-    expect(shouldMeasureConfirmedRecommendation(JSON.parse(JSON.stringify(updated)), true, JSON.parse(JSON.stringify(audit)))).toBe(false);
+    expect(
+      shouldMeasureConfirmedRecommendation(
+        JSON.parse(JSON.stringify(updated)),
+        true,
+        JSON.parse(JSON.stringify(audit)),
+      ),
+    ).toBe(false);
     const draft = transitionPo(first, "Amend", time, actor, true);
-    const amended = transitionPo(transitionPo(draft, "Generate", time, actor, true), "Issue", time, actor, true);
-    expect(shouldMeasureConfirmedRecommendation(recordSupplierConfirmation(amended, input, time, actor), true, audit)).toBe(false);
+    const amended = transitionPo(
+      transitionPo(draft, "Generate", time, actor, true),
+      "Issue",
+      time,
+      actor,
+      true,
+    );
+    expect(
+      shouldMeasureConfirmedRecommendation(
+        recordSupplierConfirmation(amended, input, time, actor),
+        true,
+        audit,
+      ),
+    ).toBe(false);
     expect(shouldMeasureConfirmedRecommendation(updated, true, [])).toBe(true);
   });
   it("records acknowledgement and expected delivery without modifying the PO or release", () => {

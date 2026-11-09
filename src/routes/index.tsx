@@ -551,9 +551,24 @@ function Index() {
       const next = recordSupplierConfirmation(poState, input, poTimestamp(), DEMO_BUYER);
       setPoState(next);
       record(supplierConfirmationAudit(poState, next));
-      if (shouldMeasureConfirmedRecommendation(next, Boolean(poContext && decisionInsights(results, reference).recommended), auditEvents) && window.__lovableEvents?.track) {
-        window.__lovableEvents?.track?.("project.rfq_recommended_after_supplier_confirmation", { synthetic: Boolean(next.po?.synthetic) });
-        record({ action: RFQ_CONFIRMED_RECOMMENDATION_EVENT, details: { source: "Weekly metric: first supplier confirmation with a current eligible recommendation" } });
+      if (
+        shouldMeasureConfirmedRecommendation(
+          next,
+          Boolean(poContext && decisionInsights(results, reference).recommended),
+          auditEvents,
+        ) &&
+        window.__lovableEvents?.track
+      ) {
+        window.__lovableEvents?.track?.("project.rfq_recommended_after_supplier_confirmation", {
+          synthetic: Boolean(next.po?.synthetic),
+        });
+        record({
+          action: RFQ_CONFIRMED_RECOMMENDATION_EVENT,
+          details: {
+            source:
+              "Weekly metric: first supplier confirmation with a current eligible recommendation",
+          },
+        });
       }
       setNotice("Supplier confirmation recorded.");
       return true;
