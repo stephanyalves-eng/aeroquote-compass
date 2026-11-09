@@ -227,14 +227,13 @@ function Index() {
   const isSampleSet = documents.length > 0 && documents.every((d) => d.id.startsWith("sample-"));
   const stages = workflowStages({ documents, extracting: busy, comparisonComputed: results.length > 0, recommendationExists: Boolean(recommendedId), decisionApproved: Boolean(approvedDecision), hasPo: Boolean(poState.po), poChecked: Boolean(poState.result), poStatus, configurationBlocked: gateBlocked(gate), revisionMonitoring: alerts.length ? (alerts.some((al) => assessments.filter((z) => z.alertKey === al.key).at(-1)?.level !== "No known impact") ? "In review" : "Confirmed") : snapshots.length ? "Confirmed" : "Pending", investigationConfirmed: investigations.length > 0 && investigations.every((i) => i.confirmed) });
   const pendingBlockers = pendingReviewBlockers(documents, reference);
-  const blockers = [
-    ...(pendingBlockers ? [`${pendingBlockers} critical review ${pendingBlockers === 1 ? "item" : "items"} in Buyer Validation`] : []),
-    ...(poStatus === "PO blocked" ? ["PO has critical discrepancies"] : []),
-    ...(poState.po && gateBlocked(gate) ? ["Configuration review must be completed before release"] : []),
-  ];
-  const main = mainSteps(stages, validReference);
-  const summary = progressSummary(main, Math.min(step, 5), blockers);
-  const stepDisabled = (i: number): string | null => busy ? "Wait for extraction to finish." : i === 3 || i === 4 ? (ready ? null : "Confirm every quotation in Buyer Validation first.") : i === 5 ? (poContext ? null : "Record a decision first.") : null;
+  const operationInput = { reference, documents, poState, configurationBlocked: gateBlocked(gate), alerts, assessments, investigations: documents.length ? investigations : [], approved: Boolean(poContext) };
+  const operationItems = useMemo(() => operationalSummary(operationInput), [reference, documents, poState, gate, alerts, assessments, investigations, poContext]);
+  const attentionItems = useMemo(() => requiresAttention(operationInput), [reference, documents, poState, gate, alerts, assessments, investigations, poContext]);
+  const searchEntries = useMemo(() => buildSearchEntries({ reference, documents, poState, registry }), [reference, documents, poState, registry]);
+  const processSteps = useMemo(() => erpProcessSteps({ setupValid: validReference, documents, extracting: busy, comparisonComputed: results.length > 0, decisionApproved: Boolean(approvedDecision), hasPo: Boolean(poState.po), poChecked: Boolean(poState.result), poStatus, configurationBlocked: gateBlocked(gate) }), [validReference, documents, busy, results, approvedDecision, poState, poStatus, gate]);
+  void pendingBlockers; void stages;
+  const stepDisabled = (i: number): string | null => i === DASHBOARD_STEP || i >= TRACE_OFFSET ? null : busy ? "Wait for extraction to finish." : i === 3 || i === 4 ? (ready ? null : "Confirm every quotation in Buyer Validation first.") : i === 5 ? (poContext ? null : "Record a decision first.") : null;
   const go = (i: number) => { setStep(i); setNotice(""); setHistory(false); if (i === 3) setStatus((st) => st === "Draft" ? "Completed" : st); };
   const allExtracted = documents.length > 0 && documents.every((d) => d.original);
   const continueAction: { label: string; run: () => void; reason: string | null } | null =
