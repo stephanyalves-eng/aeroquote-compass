@@ -24,7 +24,8 @@ export const ERP_NAV: ErpNavItem[] = [
 ];
 export const ERP_NAV_GROUPS = ["Operate", "Decide", "Trace"] as const;
 
-export type ErpStepStatus = "Not started" | "In progress" | "Requires attention" | "Blocked" | "Completed";
+export type ErpStepStatus =
+  "Not started" | "In progress" | "Requires attention" | "Blocked" | "Completed";
 export interface ErpProcessStep {
   label: string;
   status: ErpStepStatus;
@@ -48,28 +49,93 @@ export interface ErpProcessInput {
  */
 export function erpProcessSteps(state: ErpProcessInput): ErpProcessStep[] {
   const included = state.documents.filter((d) => !d.excluded);
-  const extracted = state.documents.length > 0 && state.documents.every((d) => d.original && d.reviewed);
+  const extracted =
+    state.documents.length > 0 && state.documents.every((d) => d.original && d.reviewed);
   const reviewed =
     extracted &&
     included.length > 0 &&
-    included.every((d) => d.confirmed && d.status === "Extracted" && quotationConfirmationErrors(d).length === 0);
+    included.every(
+      (d) => d.confirmed && d.status === "Extracted" && quotationConfirmationErrors(d).length === 0,
+    );
   const compared = reviewed && state.comparisonComputed;
   const approved = compared && state.decisionApproved;
   const hasPo = approved && state.hasPo;
   const checked = hasPo && state.poChecked;
   const poBlocked = checked && state.poStatus === "PO blocked";
-  const poVerified = checked && (state.poStatus === "PO checked, awaiting release" || state.poStatus === "PO checked and released");
-  const released = poVerified && !state.configurationBlocked && state.poStatus === "PO checked and released";
+  const poVerified =
+    checked &&
+    (state.poStatus === "PO checked, awaiting release" ||
+      state.poStatus === "PO checked and released");
+  const released =
+    poVerified && !state.configurationBlocked && state.poStatus === "PO checked and released";
 
   const evidence = [
-    { label: "RFQ created", done: state.setupValid, active: true, blocked: false, attention: false, detail: "RFQ details recorded" },
-    { label: "Quotes received", done: state.documents.length > 0, active: state.setupValid, blocked: false, attention: false, detail: `${state.documents.length} quotation${state.documents.length === 1 ? "" : "s"} on file` },
-    { label: "Buyer validation", done: reviewed, active: extracted, blocked: false, attention: extracted && !reviewed, detail: reviewed ? "All quotations confirmed" : "Critical fields need confirmation" },
-    { label: "Comparison complete", done: compared, active: reviewed, blocked: false, attention: false, detail: "Landed costs, scores and risks calculated" },
-    { label: "Decision approved", done: approved, active: compared, blocked: false, attention: false, detail: "Sourcing decision recorded" },
-    { label: "PO issued", done: hasPo, active: approved, blocked: false, attention: false, detail: "Purchase order created" },
-    { label: "PO verified", done: poVerified, active: checked, blocked: poBlocked, attention: checked && !poVerified && !poBlocked, detail: poBlocked ? "Critical discrepancies block verification" : "PO Check against the approved decision" },
-    { label: "Released", done: released, active: poVerified, blocked: poVerified && state.configurationBlocked, attention: false, detail: "Release before manufacturing" },
+    {
+      label: "RFQ created",
+      done: state.setupValid,
+      active: true,
+      blocked: false,
+      attention: false,
+      detail: "RFQ details recorded",
+    },
+    {
+      label: "Quotes received",
+      done: state.documents.length > 0,
+      active: state.setupValid,
+      blocked: false,
+      attention: false,
+      detail: `${state.documents.length} quotation${state.documents.length === 1 ? "" : "s"} on file`,
+    },
+    {
+      label: "Buyer validation",
+      done: reviewed,
+      active: extracted,
+      blocked: false,
+      attention: extracted && !reviewed,
+      detail: reviewed ? "All quotations confirmed" : "Critical fields need confirmation",
+    },
+    {
+      label: "Comparison complete",
+      done: compared,
+      active: reviewed,
+      blocked: false,
+      attention: false,
+      detail: "Landed costs, scores and risks calculated",
+    },
+    {
+      label: "Decision approved",
+      done: approved,
+      active: compared,
+      blocked: false,
+      attention: false,
+      detail: "Sourcing decision recorded",
+    },
+    {
+      label: "PO issued",
+      done: hasPo,
+      active: approved,
+      blocked: false,
+      attention: false,
+      detail: "Purchase order created",
+    },
+    {
+      label: "PO verified",
+      done: poVerified,
+      active: checked,
+      blocked: poBlocked,
+      attention: checked && !poVerified && !poBlocked,
+      detail: poBlocked
+        ? "Critical discrepancies block verification"
+        : "PO Check against the approved decision",
+    },
+    {
+      label: "Released",
+      done: released,
+      active: poVerified,
+      blocked: poVerified && state.configurationBlocked,
+      attention: false,
+      detail: "Release before manufacturing",
+    },
   ];
 
   let previousDone = true;

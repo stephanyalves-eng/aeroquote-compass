@@ -111,19 +111,28 @@ const SEVERITY_ORDER: Record<AttentionSeverity, number> = { Critical: 0, High: 1
 export function requiresAttention(input: OperationInput): AttentionItem[] {
   const { reference, documents } = input;
   const items: AttentionItem[] = [];
-  const pending = documents.filter((d) => !d.excluded && (!d.confirmed || quotationConfirmationErrors(d).length));
+  const pending = documents.filter(
+    (d) => !d.excluded && (!d.confirmed || quotationConfirmationErrors(d).length),
+  );
   const summary = poSummary(input.poState?.result, input.poState?.resolutions);
   const blockedPo = Boolean(
-    input.poState?.po && (summary.blockers || input.poState.result?.validationErrors.length || input.configurationBlocked),
+    input.poState?.po &&
+    (summary.blockers ||
+      input.poState.result?.validationErrors.length ||
+      input.configurationBlocked),
   );
   const revisions = unresolvedRevisionAlerts(input.alerts ?? [], input.assessments ?? []);
   const expiring = documents.filter((d) => {
     const until = d.reviewed?.validity_end_date ?? d.original?.validity_end_date;
-    return until && daysBetween(reference.today, until) >= 0 && daysBetween(reference.today, until) < 30;
+    return (
+      until && daysBetween(reference.today, until) >= 0 && daysBetween(reference.today, until) < 30
+    );
   });
   const investigations = (input.investigations ?? []).filter((i) => !i.confirmed);
   const comparisonReady =
-    documents.length > 0 && documents.every((d) => d.original && d.reviewed) && pending.length === 0;
+    documents.length > 0 &&
+    documents.every((d) => d.original && d.reviewed) &&
+    pending.length === 0;
 
   if (blockedPo)
     items.push({
@@ -191,7 +200,11 @@ export function requiresAttention(input: OperationInput): AttentionItem[] {
       nextAction: "Open investigation",
       step: 8,
     });
-  return items.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || (a.due ?? "9999").localeCompare(b.due ?? "9999"));
+  return items.sort(
+    (a, b) =>
+      SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] ||
+      (a.due ?? "9999").localeCompare(b.due ?? "9999"),
+  );
 }
 
 /** Current analysis only; saved RFQs are summarized independently under owner-only History. */
