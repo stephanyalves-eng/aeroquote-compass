@@ -29,7 +29,7 @@ export function Dashboard({ view = "all", list, reference, weights, onWeights, a
   const [expanded, setExpanded] = useState<string[]>([]);
   const [showAll, setShowAll] = useState(false); const focused = chartFocus(list, recommended?.document.id ?? null, selected, showAll);
   const showCalculation = (id: string) => { setExpanded((old) => [...new Set([...old, id])]); requestAnimationFrame(() => document.getElementById(`${window.innerWidth < 768 ? "mobile-landed" : "landed"}-${id}`)?.scrollIntoView({ block: "center" })); };
-  const shown = onlySelected ? list.filter((a) => selected.includes(a.document.id)) : allSuppliers || list.length <= 6 ? list : focused;
+  const shown = onlySelected ? list.filter((a) => selected.includes(a.document.id)) : allSuppliers || list.length <= 6 ? list : chartFocus(list, recommended?.document.id ?? null, [], false);
   const detail = list.find((a) => a.document.id === detailId);
   const metrics = ["Suppliers Evaluated", "Quotes Analyzed", "Lowest Annual Landed Cost", "Potential Savings", "Average Supplier Cost", "Recommended Supplier"];
   const values = [new Set(list.map((a) => a.name.toLowerCase())).size, list.length, <Money value={insight.lowest} />, <Money value={insight.savings} />, <Money value={insight.average} />, recommended?.name ?? "Pending resolution"];
