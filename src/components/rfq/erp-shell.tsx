@@ -117,7 +117,7 @@ export function Notifications({ items, onSelect }: { items: AttentionItem[]; onS
       <Button variant="ghost" size="icon" aria-label={`Notifications: ${items.length} items require attention`}
         className="relative size-11 text-text-inverse hover:bg-text-inverse/10 hover:text-text-inverse md:size-9">
         <Bell strokeWidth={1.5} />
-        {items.length > 0 && <span aria-hidden="true" className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-signal text-[10px] font-medium text-text-on-signal">{items.length}</span>}
+        {items.length > 0 && <span aria-hidden="true" className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-signal text-[10px] font-medium text-surface-inverse">{items.length}</span>}
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="w-80">
