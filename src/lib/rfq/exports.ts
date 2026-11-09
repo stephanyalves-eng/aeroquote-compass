@@ -93,6 +93,15 @@ export function analysisPdfTables(list: Intelligence[], ref: RfqReference, weigh
   for (const { a, b } of breakdowns) { table(`${a.name} | Landed Cost Breakdown`, ["Component", "Original value", "FX to USD", "USD", "Source", "Treatment / note", "Formula"], b.validationErrors.length ? b.validationErrors.map((e) => ["Calculation blocked", e, "", "", "", "", ""]) : b.components.map((c) => [c.label, `${c.currencyOriginal} ${usd(c.amountOriginal)}`, c.fxRate.toFixed(6), usd(c.amountUsd), SOURCE_LABELS[c.source], c.note, c.formula])); }
   return out;
 }
+export const PDF_BRAND = "AeroQuote Compass";
+export const PDF_FOOTER = "Stephany Alves · SIGNAL & STRUCTURE · Synthetic data";
+/** Every text label drawn on the analysis PDF bar-chart page (title, supplier labels, values, band and footer). */
+export function analysisChartPage(list: Intelligence[], ref: RfqReference) {
+  const recommended = decisionInsights(list, ref).recommended?.name;
+  const max = Math.max(...list.map((a) => a.annualLanded ?? 0), 1);
+  const bars = list.map((a) => ({ label: ascii(a.name.slice(0, 35)), value: usd(a.annualLanded), recommended: a.name === recommended, share: (a.annualLanded ?? 0) / max }));
+  return { title: ascii("Annual Landed Cost by Supplier | USD"), bars, labels: [PDF_BRAND, ascii("Annual Landed Cost by Supplier | USD"), ...bars.flatMap((b) => [b.label, b.value]), ascii(PDF_FOOTER)] };
+}
 export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intelligence[], ref: RfqReference, weights: Weights) {
   const filename = (ref.rfqNumber || "RFQ").replace(/[^a-zA-Z0-9_-]/g, "_");
   if (format === "csv") {
@@ -116,15 +125,15 @@ export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intel
   const signal: [number, number, number] = [53, 213, 138];
   const series: [number, number, number] = [30, 82, 70];
   const totalPages = () => pdf.getNumberOfPages();
-  const finish = () => { for (let p = 1; p <= totalPages(); p++) { pdf.setPage(p); pdf.setFontSize(7); pdf.setTextColor(...ink); pdf.text("Stephany Alves · SIGNAL & STRUCTURE · Synthetic data", 14, 205); } };
-  const band = (title: string) => { pdf.setFillColor(...forest); pdf.rect(0, 0, 297, 16, "F"); pdf.setTextColor(...ivory); pdf.setFontSize(10); pdf.text("AeroQuote Compass", 14, 10.5); pdf.setTextColor(...ink); pdf.setFontSize(16); pdf.text(ascii(title), 14, 28); };
+  const finish = () => { for (let p = 1; p <= totalPages(); p++) { pdf.setPage(p); pdf.setFontSize(7); pdf.setTextColor(...ink); pdf.text(ascii(PDF_FOOTER), 14, 205); } };
+  const band = (title: string) => { pdf.setFillColor(...forest); pdf.rect(0, 0, 297, 16, "F"); pdf.setTextColor(...ivory); pdf.setFontSize(10); pdf.text(PDF_BRAND, 14, 10.5); pdf.setTextColor(...ink); pdf.setFontSize(16); pdf.text(ascii(title), 14, 28); };
   const table = (title: string, head: string[], rows: string[][]) => { band(title); autoTable(pdf, { startY: 35, head: [head.map(ascii)], body: rows.map((r) => r.map(ascii)), styles: { fontSize: 8, textColor: ink, lineColor: line, lineWidth: 0.1 }, headStyles: { fillColor: sunken, textColor: ink }, theme: "grid" }); };
   const tables = analysisPdfTables(list, ref, weights);
   const [first, ...rest] = tables;
   if (first) table(first.title, first.head, first.rows);
-  pdf.addPage(); band("Annual Landed Cost by Supplier | USD");
-  const max = Math.max(...list.map((a) => a.annualLanded ?? 0), 1);
-  list.forEach((a, i) => { const y = 44 + i * 7; pdf.setFontSize(9); pdf.setTextColor(...ink); pdf.text(ascii(a.name.slice(0, 35)), 14, y); pdf.setFillColor(...(a.name === insights.recommended?.name ? signal : series)); pdf.rect(85, y - 4, Math.max(0.5, (a.annualLanded ?? 0) / max * 140), 4, "F"); pdf.text(usd(a.annualLanded), 230, y); });
+  const chart = analysisChartPage(list, ref);
+  pdf.addPage(); band(chart.title);
+  chart.bars.forEach((b, i) => { const y = 44 + i * 7; pdf.setFontSize(9); pdf.setTextColor(...ink); pdf.text(b.label, 14, y); pdf.setFillColor(...(b.recommended ? signal : series)); pdf.rect(85, y - 4, Math.max(0.5, b.share * 140), 4, "F"); pdf.text(b.value, 230, y); });
   for (const t of rest) { pdf.addPage(); table(t.title, t.head, t.rows); }
   finish();
   pdf.save(`${filename}-analysis.pdf`);

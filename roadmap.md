@@ -15,3 +15,5 @@
 - [x] Verify signed-in private save → history → reopen: existing account session used; confirmed sample saved and reopened successfully.
 - [x] Scan every sheet/section of the analysis export for internal field names, with regression tests
 - [x] Tests: accepting PO discrepancies for each demo PO (partial acceptance, justification, audit events, release eligibility)
+- [x] Browser tests: accepting PO discrepancies across all demo POs (partial, justification, audit entries, release)
+- [x] Leak scan of every text label on the PDF bar-chart page, with regression tests
