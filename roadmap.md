@@ -1,4 +1,5 @@
 # AeroQuote Compass
+- [ ] Phase 1: review issues, individual/bulk confirmation, demo audit events and backward-compatible snapshots; verify tests and desktop/mobile sample flow.
 - [x] Align Best Overall with eligible recommendation and correct plurality wording; all 78 tests pass and live sample extraction → four confirmations → comparison verifies Atlas badge, unchanged costs and savings.
 - [x] Extend RFQ setup, batch uploads and extraction metadata; preserve legacy rules.
 - [x] Require editable buyer review before calculated comparisons.

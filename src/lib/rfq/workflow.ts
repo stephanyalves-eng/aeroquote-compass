@@ -1,5 +1,6 @@
 import type { ExtractedQuote, RfqReference } from "./types";
 import { DEFAULT_INCOTERM_ADDERS } from "./rules";
+import type { FieldReviewStatus } from "./review-types";
 
 export const MAX_FILES = 20;
 export const FILE_TYPES = ["pdf", "xlsx", "xls", "csv", "txt"];
@@ -15,6 +16,7 @@ export interface QuoteDocument {
   original?: ExtractedQuote | undefined;
   reviewed?: ExtractedQuote | undefined;
   confirmed: boolean;
+  fieldStatus?: FieldReviewStatus;
 }
 export const newReference = (): RfqReference => ({
   rfqNumber: "", partNumber: "", revision: "", annualVolume: 12,
@@ -45,7 +47,7 @@ export function quoteErrors(q: ExtractedQuote): string[] {
   if (q.unit_price == null || !Number.isFinite(q.unit_price) || q.unit_price < 0) errors.push("A valid unit price is required.");
   for (const key of ["moq", "quantity_basis", "lead_time_days", "payment_terms_days", "warranty_months", "freight", "insurance", "duties", "other_adders"] as const) {
     const value = q[key];
-    if (value != null && (!Number.isFinite(value) || value < 0)) errors.push(`${key.replaceAll("_", " ")} must be a non-negative number.`);
+    if (value != null && (!Number.isFinite(value) || value < 0)) errors.push(`${REVIEW_FIELDS.find((f) => f.key === key)?.label ?? "Value"} must be a non-negative number.`);
   }
   if (q.price_breaks.some((x) => !Number.isFinite(x.min_qty) || x.min_qty < 0 || !Number.isFinite(x.unit_price) || x.unit_price < 0)) errors.push("Invalid price break.");
   if (q.one_time_costs.some((x) => !Number.isFinite(x.amount) || x.amount < 0 || (x.currency != null && !["USD", "EUR", "BRL"].includes(x.currency)))) errors.push("Invalid one-time cost.");

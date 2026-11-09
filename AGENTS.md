@@ -15,3 +15,4 @@
 - Quoted annual logistics replace the combined Incoterm estimate only in the extended landed-cost analysis; missing freight/insurance are never split or presented as quoted zero. Why: avoid double counting and invented costs.
 - RFQ history is Cloud-persisted with authenticated owner-only access; analysis and exports remain public without sign-in. Why: protect commercial data while retaining the portfolio demo workflow.
 - Spreadsheet reading and PDF/Excel downloads are dynamically loaded in browser event handlers. Why: avoid browser-only library evaluation during Worker SSR.
+- Review issues and field transitions live in pure review-issues helpers, separate from confirmed-only intelligence; optional field state and demo audit events persist in snapshots. Why: review acknowledgements must not alter calculations or award eligibility, and old history must reopen.
