@@ -7,7 +7,7 @@ import type { RfqReference } from "./types";
 import type { FailureInvestigation } from "./investigation";
 import { unresolvedRevisionAlerts, type RevisionAlert, type ImpactAssessment } from "./revisions";
 
-export interface OperationInput { reference: RfqReference; documents: QuoteDocument[]; poState?: PoState; configurationBlocked?: boolean; alerts?: RevisionAlert[]; assessments?: ImpactAssessment[]; investigations?: FailureInvestigation[]; approved?: boolean }
+export interface OperationInput { reference: RfqReference; documents: QuoteDocument[]; poState?: PoState | undefined; configurationBlocked?: boolean | undefined; alerts?: RevisionAlert[] | undefined; assessments?: ImpactAssessment[] | undefined; investigations?: FailureInvestigation[] | undefined; approved?: boolean | undefined }
 export interface OperationItem { id: string; label: string; count: number; tone: "neutral" | "warning" | "error" | "success"; details: string[]; action: string; step: number }
 /** Current analysis only; saved RFQs are summarized independently under owner-only History. */
 export function operationalSummary(input: OperationInput): OperationItem[] {
