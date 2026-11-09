@@ -36,7 +36,7 @@ import type { ApprovedPoContext, PoState } from "@/lib/rfq/po-types";
 function DocumentContent({ doc, zoom = 100 }: { doc: PoDocument; zoom?: number }) {
   return (
     <article
-      className={`po-document border border-border-default bg-surface-card p-4 sm:p-8 ${zoom === 125 ? "text-base" : zoom === 150 ? "text-lg" : "text-sm"}`}
+      className={`po-document min-w-0 border border-border-default bg-surface-card p-4 sm:p-8 ${zoom === 125 ? "text-base" : zoom === 150 ? "text-lg" : "text-sm"}`}
       aria-label="Purchase order document"
     >
       <header className="border-b-2 border-border-brand pb-5">
@@ -560,7 +560,7 @@ export function PoWorkspace({
               <Maximize />
             </Button>
           </div>
-          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 xl:grid-cols-[minmax(0,1fr)_240px]">
             <DocumentContent doc={doc} zoom={zoom} />
             <aside className="order-first space-y-3 border-l-2 border-border-brand pl-4 xl:order-last">
               <h3 className="font-medium">{doc.status} PO</h3>

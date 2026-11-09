@@ -177,7 +177,7 @@ export function transitionPo(
     history: [],
   };
   if (phase === "Cancelled") throw new Error("Cancelled POs cannot be changed.");
-  let next: PoState = structuredClone(state);
+  const next: PoState = structuredClone(state);
   next.lifecycle = { ...structuredClone(l), updatedAt: timestamp, actor };
   if (action === "Amend") {
     if (!l.issued) throw new Error("Issue the PO before creating an amendment.");
