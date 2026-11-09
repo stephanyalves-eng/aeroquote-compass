@@ -23,11 +23,14 @@ async def main():
   await pg.locator('summary',has_text='Edit purchase order').click();await pg.get_by_label('Description',exact=True).fill('Hydraulic actuator Y8 – saved draft')
   assert await btn('Generate PO').is_disabled();await btn('Save PO draft').click();await btn('Generate PO').click();await btn('Issue PO').click();await btn('Confirm issue').click()
   assert await pg.get_by_text('Issued document locked.',exact=False).is_visible()
+  assert await pg.evaluate("window.__testPoEvents.filter(e=>e.name==='project.rfq_recommended_after_supplier_confirmation').length") == 0
   await pg.get_by_label('Supplier confirmation date',exact=True).fill('2026-10-26');await pg.get_by_label('Supplier expected delivery date',exact=True).fill('2027-03-15');await pg.get_by_label('Supplier confirmation reference',exact=True).fill('ACK-DEMO-123');await btn('Save supplier confirmation').click()
   confirmation=pg.get_by_role('region',name='Supplier confirmation',exact=True)
   assert await confirmation.get_by_text('2027-03-15',exact=True).is_visible()
+  assert await pg.evaluate("window.__testPoEvents.filter(e=>e.name==='project.rfq_recommended_after_supplier_confirmation').length") == 1
   await btn('Update supplier confirmation').click();await pg.get_by_label('Supplier expected delivery date',exact=True).fill('2027-03-20');await btn('Save supplier confirmation').click()
   assert await confirmation.get_by_text('2027-03-20',exact=True).is_visible()
+  assert await pg.evaluate("window.__testPoEvents.filter(e=>e.name==='project.rfq_recommended_after_supplier_confirmation').length") == 1
   await pg.screenshot(path='/tmp/browser/po-confirmation/recorded.png')
   await btn('Start verification').click();await btn('Check purchase order').click()
   # Description differs intentionally; accept the noncritical discrepancy.
@@ -70,6 +73,11 @@ async def main():
   assert await btn('Release purchase').is_disabled()
   events=await pg.evaluate('window.__testPoEvents');blocked=[e for e in events if e['name']=='project.po_blocked'];assert len(blocked)==1 and blocked[0]['properties']['reason']=='verification' and blocked[0]['properties']['blockers']>0,events
   assert sum(e['name']=='project.po_validated' for e in events)==2,events
+  await btn('Update supplier confirmation').click() if await btn('Update supplier confirmation').count() else asyncio.sleep(0)
+  await pg.get_by_label('Supplier confirmation date',exact=True).fill('2026-10-26');await pg.get_by_label('Supplier expected delivery date',exact=True).fill('2027-03-25');await btn('Save supplier confirmation').click()
+  events=await pg.evaluate('window.__testPoEvents')
+  weekly=[e for e in events if e['name']=='project.rfq_recommended_after_supplier_confirmation']
+  assert len(weekly)==1 and weekly[0]['properties']=={'synthetic':True},events
   for e in events: assert set(e['properties']) <= {'synthetic','blockers','discrepancies','valid','reason'}
   print('PASS supplier acknowledgement and delivery, correction audit, immutable old version, analytics issue/check/block/release; draft save → generate → issue → verify → accept → release; PDF, zoom/fullscreen; amendment, superseded details, RFQ/status filters; widths 320–1440; errors:',errors)
   assert not errors;await b.close()
