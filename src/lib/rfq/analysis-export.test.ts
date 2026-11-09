@@ -23,7 +23,7 @@ describe("original analysis export never leaks internal field names", () => {
     });
     it(`${label}: every PDF table (titles, headers and cells)`, () => {
       const tables = analysisPdfTables(list, ref, DEFAULT_WEIGHTS);
-      expect(tables.length).toBe(7 + list.length);
+      expect(tables.length).toBe(6 + list.length);
       expect(tables.flatMap((t) => leaks(t.title, [t.title, ...t.head, ...t.rows.flat()]))).toEqual([]);
       expect(tables.flatMap((t) => t.rows.flat()).some((c) => /[÷×−≥]/.test(c))).toBe(false);
     });
