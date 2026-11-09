@@ -316,6 +316,7 @@ function Index() {
         return;
       const next = {
         ...startPoDraft(po, poTimestamp(), DEMO_BUYER),
+        supplierConfirmations: poState.supplierConfirmations,
         tolerances: { ...poState.tolerances },
         lifecycle: {
           ...startPoDraft(po, poTimestamp(), DEMO_BUYER).lifecycle,
@@ -342,6 +343,7 @@ function Index() {
       return;
     }
     const next = loadAndCheckPo(po, poContext, poState.tolerances);
+    next.supplierConfirmations = poState.supplierConfirmations;
     next.lifecycle = {
       phase: "Awaiting release",
       revision: (poState.lifecycle?.revision ?? 0) + 1,
