@@ -120,5 +120,8 @@ describe("operational evidence summaries", () => {
     const input = { reference: sampleReference, documents: sampleDocuments, alerts };
     expect(operationalSummary(input).find((i) => i.id === "revisions")?.count).toBe(1);
     expect(operationalSummary({ ...input, assessments: [createImpactAssessment(alert, "No known impact", "Reviewed engineering change.", "Demo buyer", "2026-11-15")] }).find((i) => i.id === "revisions")?.count).toBe(0);
+    const investigation = { failureId: "CASE-DEMO-1", suggested: "Insufficient evidence" as const, evidence: [], revisionAtManufacture: null, confirmed: null, confirmedBy: null, note: "" };
+    expect(operationalSummary({ ...input, investigations: [investigation] }).find((i) => i.id === "investigations")?.count).toBe(1);
+    expect(operationalSummary({ ...input, investigations: [{ ...investigation, confirmed: "Insufficient evidence" }] }).find((i) => i.id === "investigations")?.count).toBe(0);
   });
 });
