@@ -365,6 +365,8 @@ function Index() {
       newValue: po,
       details: { source: scenario },
     });
+    window.__lovableEvents?.track?.("project.po_validated", { synthetic: Boolean(po.synthetic), blockers: poSummary(next.result).blockers, discrepancies: poSummary(next.result).discrepancies, valid: Boolean(next.result && !next.result.validationErrors.length && !poSummary(next.result).blockers) });
+    if (next.result && (poSummary(next.result).blockers || next.result.validationErrors.length)) window.__lovableEvents?.track?.("project.po_blocked", { synthetic: Boolean(po.synthetic), reason: "verification", blockers: poSummary(next.result).blockers });
     record({
       action: "PO check executed",
       details: {
@@ -396,6 +398,8 @@ function Index() {
     if (!poContext || !poState.po || !poVerificationAllowed(poState)) return;
     const result = checkPurchaseOrder(poState.po, poContext, poState.tolerances);
     setPoState({ ...poState, result, released: false });
+    window.__lovableEvents?.track?.("project.po_validated", { synthetic: Boolean(poState.po.synthetic), blockers: poSummary(result).blockers, discrepancies: poSummary(result).discrepancies, valid: !result.validationErrors.length && !poSummary(result).blockers });
+    if (poSummary(result).blockers || result.validationErrors.length) window.__lovableEvents?.track?.("project.po_blocked", { synthetic: Boolean(poState.po.synthetic), reason: "verification", blockers: poSummary(result).blockers });
     record({
       action: "PO check executed",
       details: {
@@ -442,6 +446,7 @@ function Index() {
   };
   const releasePo = () => {
     if (gateBlocked(gate)) {
+      window.__lovableEvents?.track?.("project.po_blocked", { synthetic: Boolean(poState.po?.synthetic), reason: "configuration", blockers: poSummary(poState.result, poState.resolutions).blockers });
       record({
         action: "PO blocked",
         details: { poNumber: poState.po?.poNumber, reason: "Configuration review blockers" },
@@ -465,7 +470,9 @@ function Index() {
         action: "PO released",
         details: { poNumber: next.po?.poNumber, supplier: next.po?.supplier },
       });
+      window.__lovableEvents?.track?.("project.po_released", { synthetic: Boolean(next.po?.synthetic) });
     } catch (e) {
+      window.__lovableEvents?.track?.("project.po_blocked", { synthetic: Boolean(poState.po?.synthetic), reason: "release_gate", blockers: poSummary(poState.result, poState.resolutions).blockers });
       setNotice(e instanceof Error ? e.message : "Purchase cannot be released.");
     }
   };
@@ -481,7 +488,10 @@ function Index() {
       );
       setPoState(next);
       record(lifecycleAudit(action, poState, next));
+      if (action === "Issue") window.__lovableEvents?.track?.("project.po_issued", { synthetic: Boolean(next.po?.synthetic) });
+      if (action === "Release") window.__lovableEvents?.track?.("project.po_released", { synthetic: Boolean(next.po?.synthetic) });
     } catch (e) {
+      if (["Confirm verification", "Prepare release", "Release"].includes(action)) window.__lovableEvents?.track?.("project.po_blocked", { synthetic: Boolean(poState.po?.synthetic), reason: gateBlocked(gate) ? "configuration" : "release_gate", blockers: poSummary(poState.result, poState.resolutions).blockers });
       setNotice(e instanceof Error ? e.message : "Could not update the purchase order.");
     }
   };
