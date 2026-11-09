@@ -1,7 +1,7 @@
 import { createSnapshot, demoRevisionRegistry, publishRevision, type ConfigurationSnapshot, type DocumentRevision } from "./revisions";
 import type { InspectionFailure } from "./investigation";
 export interface InvestigationCase { id: string; title: string; registry: DocumentRevision[]; snapshots: ConfigurationSnapshot[]; failure: InspectionFailure; manufacturedOn: string }
-const QA = "Ana Duarte (Demo quality)", BUYER = "Marina Costa (Demo buyer)";
+const BUYER = "Marina Costa (Demo buyer)";
 const poCheck = (registry: DocumentRevision[], id: string, at: string, found: string, result: ConfigurationSnapshot["result"], poNumber: string, supplier: string) =>
   createSnapshot(registry, { id, at, timestamp: `${at}T14:00:00.000Z`, checkType: "PO verification", actor: BUYER, supplier, partNumber: "PN-45Y1258", quoteRevision: found, foundRevision: found, sourceDocuments: ["DWG-45210", "ES-1180", "RFQ-24410"], result, divergences: [], tolerances: null, justifications: [], finalStatus: result === "Confirmed" ? "PO checked and released" : "PO blocked", poNumber });
 /** Three synthetic failure cases with their own immutable history. */
