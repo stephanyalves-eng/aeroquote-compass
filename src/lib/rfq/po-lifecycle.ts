@@ -276,3 +276,29 @@ export function draftEditAudit(
     details: { check: f.label, poNumber: next.poNumber },
   }));
 }
+
+export function poLifecycleSteps(state: PoState, configurationBlocked: boolean) {
+  const issued = Boolean(state.po && (!state.lifecycle || state.lifecycle.issued));
+  const generated = issued || state.lifecycle?.phase === "Generated";
+  const checked = issued && Boolean(state.result);
+  const summary = poSummary(state.result, state.resolutions);
+  const reviewed = checked && summary.canRelease;
+  const revisionVerified = reviewed && !configurationBlocked;
+  const releaseReady = revisionVerified && (!state.lifecycle || state.lifecycle.phase === "Awaiting release");
+  const evidence = [
+    ["PO draft", Boolean(state.po), false],
+    ["Generated", generated, false],
+    ["Issued", issued, false],
+    ["Verification", checked, false],
+    ["Discrepancy review", reviewed, checked && !reviewed],
+    ["Revision verification", revisionVerified, reviewed && configurationBlocked],
+    ["Ready for release", releaseReady, false],
+    ["Released", releaseReady && state.released, false],
+  ] as const;
+  let previousComplete = true;
+  return evidence.map(([label, done, blocked]) => {
+    const status = state.lifecycle?.phase === "Cancelled" ? "Cancelled" : previousComplete && done ? "Completed" : previousComplete && blocked ? "Blocked" : previousComplete ? "In progress" : "Not started";
+    previousComplete = previousComplete && done;
+    return { label, status };
+  });
+}
