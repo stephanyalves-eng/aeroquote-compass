@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "events": {
+    "project.po_issued": {
+      "event_schema_version": 1,
+      "description": "An issued PO is successfully created by the explicit Issue action.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "synthetic"
+        ],
+        "properties": {
+          "synthetic": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
