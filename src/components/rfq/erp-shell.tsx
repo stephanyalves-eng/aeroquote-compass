@@ -43,48 +43,51 @@ function NavList({ current, disabled, onSelect, collapsed }: { current: number; 
   </nav>;
 }
 
-export function ErpSidebar({ current, disabled, onSelect, onHistory, onNewRfq, busy }: {
+interface SidebarProps {
   current: number; disabled: (step: number) => string | null; onSelect: (step: number) => void;
   onHistory: () => void; onNewRfq: () => void; busy: boolean;
-}) {
+}
+
+export function ErpSidebar({ current, disabled, onSelect, onHistory, onNewRfq, busy }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  return <aside className={`sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border-default bg-surface-raised md:flex ${collapsed ? "w-14" : "w-56"}`}>
+    <div className="flex-1 overflow-y-auto p-2">
+      <NavList current={current} disabled={disabled} onSelect={onSelect} collapsed={collapsed} />
+    </div>
+    <div className="space-y-1 border-t border-border-subtle p-2">
+      <button type="button" title={collapsed ? "RFQ History" : undefined} disabled={busy} onClick={onHistory}
+        className={`flex min-h-11 w-full items-center gap-3 rounded-sm px-2 text-sm text-text-secondary hover:bg-surface-sunken hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-50 ${collapsed ? "justify-center" : ""}`}>
+        <HistoryIcon className="size-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />{!collapsed && "RFQ History"}
+      </button>
+      <button type="button" title={collapsed ? "New RFQ" : undefined} disabled={busy} onClick={onNewRfq}
+        className={`flex min-h-11 w-full items-center gap-3 rounded-sm px-2 text-sm text-text-secondary hover:bg-surface-sunken hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-50 ${collapsed ? "justify-center" : ""}`}>
+        <Plus className="size-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />{!collapsed && "New RFQ"}
+      </button>
+      <button type="button" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+        className={`flex min-h-11 w-full items-center gap-3 rounded-sm px-2 text-sm text-text-secondary hover:bg-surface-sunken hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring ${collapsed ? "justify-center" : ""}`}>
+        {collapsed ? <ChevronRight className="size-4" strokeWidth={1.5} aria-hidden="true" /> : <><ChevronLeft className="size-4" strokeWidth={1.5} aria-hidden="true" />Collapse</>}
+      </button>
+    </div>
+  </aside>;
+}
+
+export function MobileNav({ current, disabled, onSelect, onHistory, onNewRfq, busy }: SidebarProps) {
   const [drawer, setDrawer] = useState(false);
   const select = (step: number) => { onSelect(step); setDrawer(false); };
-  return <>
-    <aside className={`sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border-default bg-surface-raised md:flex ${collapsed ? "w-14" : "w-56"}`}>
-      <div className="flex-1 overflow-y-auto p-2">
-        <NavList current={current} disabled={disabled} onSelect={onSelect} collapsed={collapsed} />
-      </div>
-      <div className="space-y-1 border-t border-border-subtle p-2">
-        <button type="button" title={collapsed ? "RFQ History" : undefined} disabled={busy} onClick={onHistory}
-          className={`flex min-h-11 w-full items-center gap-3 rounded-sm px-2 text-sm text-text-secondary hover:bg-surface-sunken hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-50 ${collapsed ? "justify-center" : ""}`}>
-          <HistoryIcon className="size-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />{!collapsed && "RFQ History"}
-        </button>
-        <button type="button" title={collapsed ? "New RFQ" : undefined} disabled={busy} onClick={onNewRfq}
-          className={`flex min-h-11 w-full items-center gap-3 rounded-sm px-2 text-sm text-text-secondary hover:bg-surface-sunken hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-50 ${collapsed ? "justify-center" : ""}`}>
-          <Plus className="size-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />{!collapsed && "New RFQ"}
-        </button>
-        <button type="button" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
-          className={`flex min-h-11 w-full items-center gap-3 rounded-sm px-2 text-sm text-text-secondary hover:bg-surface-sunken hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring ${collapsed ? "justify-center" : ""}`}>
-          {collapsed ? <ChevronRight className="size-4" strokeWidth={1.5} aria-hidden="true" /> : <><ChevronLeft className="size-4" strokeWidth={1.5} aria-hidden="true" />Collapse</>}
-        </button>
-      </div>
-    </aside>
-    <div className="md:hidden">
-      <Button variant="ghost" size="icon" aria-label="Open navigation menu" onClick={() => setDrawer(true)}
-        className="size-11 text-text-inverse hover:bg-text-inverse/10 hover:text-text-inverse"><Menu /></Button>
-      <Sheet open={drawer} onOpenChange={setDrawer}>
-        <SheetContent side="left" className="w-72 overflow-y-auto">
-          <SheetHeader><SheetTitle>AeroQuote Compass</SheetTitle><SheetDescription>ERP navigation</SheetDescription></SheetHeader>
-          <div className="mt-4"><NavList current={current} disabled={disabled} onSelect={select} collapsed={false} /></div>
-          <div className="mt-4 space-y-1 border-t border-border-subtle pt-3">
-            <button type="button" disabled={busy} onClick={() => { onHistory(); setDrawer(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-sm px-2 text-sm text-text-secondary hover:bg-surface-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-50"><HistoryIcon className="size-4" strokeWidth={1.5} aria-hidden="true" />RFQ History</button>
-            <button type="button" disabled={busy} onClick={() => { onNewRfq(); setDrawer(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-sm px-2 text-sm text-text-secondary hover:bg-surface-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-50"><Plus className="size-4" strokeWidth={1.5} aria-hidden="true" />New RFQ</button>
-          </div>
-        </SheetContent>
-      </Sheet>
-    </div>
-  </>;
+  return <div className="md:hidden">
+    <Button variant="ghost" size="icon" aria-label="Open navigation menu" onClick={() => setDrawer(true)}
+      className="size-11 text-text-inverse hover:bg-text-inverse/10 hover:text-text-inverse"><Menu /></Button>
+    <Sheet open={drawer} onOpenChange={setDrawer}>
+      <SheetContent side="left" className="w-72 overflow-y-auto">
+        <SheetHeader><SheetTitle>AeroQuote Compass</SheetTitle><SheetDescription>ERP navigation</SheetDescription></SheetHeader>
+        <div className="mt-4"><NavList current={current} disabled={disabled} onSelect={select} collapsed={false} /></div>
+        <div className="mt-4 space-y-1 border-t border-border-subtle pt-3">
+          <button type="button" disabled={busy} onClick={() => { onHistory(); setDrawer(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-sm px-2 text-sm text-text-secondary hover:bg-surface-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-50"><HistoryIcon className="size-4" strokeWidth={1.5} aria-hidden="true" />RFQ History</button>
+          <button type="button" disabled={busy} onClick={() => { onNewRfq(); setDrawer(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-sm px-2 text-sm text-text-secondary hover:bg-surface-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring disabled:opacity-50"><Plus className="size-4" strokeWidth={1.5} aria-hidden="true" />New RFQ</button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  </div>;
 }
 
 export function GlobalSearch({ entries, onSearch, onSelect }: { entries: SearchEntry[]; onSearch: (query: string) => SearchEntry[]; onSelect: (entry: SearchEntry) => void }) {
