@@ -1,6 +1,40 @@
 {
   "schema_version": 1,
   "events": {
+    "project.po_blocked": {
+      "event_schema_version": 1,
+      "description": "A completed PO check finds critical blockers or validation errors, or a verification/release action is blocked by configuration or release gates.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "synthetic",
+          "reason",
+          "blockers"
+        ],
+        "properties": {
+          "synthetic": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "verification",
+              "configuration",
+              "release_gate"
+            ]
+          },
+          "blockers": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
     "project.po_issued": {
       "event_schema_version": 1,
       "description": "An issued PO is successfully created by the explicit Issue action.",
