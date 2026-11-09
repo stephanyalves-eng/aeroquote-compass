@@ -13,7 +13,7 @@ export interface ReviewActions {
   onBulkConfirm: (id?: string) => void;
   onReset: (id: string, field: ReviewField) => void;
 }
-export function ReviewPending({ documents, reference, selectedId, onFocus, ...actions }: ReviewActions & { documents: QuoteDocument[]; reference: RfqReference; selectedId?: string; onFocus: (id: string, field: ReviewField) => void }) {
+export function ReviewPending({ documents, reference, selectedId, onFocus, ...actions }: ReviewActions & { documents: QuoteDocument[]; reference: RfqReference; selectedId?: string | undefined; onFocus: (id: string, field: ReviewField) => void }) {
   const [filter, setFilter] = useState("all");
   const summary = reviewSummary(documents, reference);
   const confirmed = documents.flatMap((d) => d.reviewed ? REVIEW_FIELDS.filter((f) => fieldConfirmed(d, f.key)).map((f) => ({ d, f })) : []);
