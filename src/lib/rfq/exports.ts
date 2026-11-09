@@ -30,11 +30,11 @@ const refValue = (k: string, v: unknown): string =>
 
 export function exportRows(list: Intelligence[], ref?: RfqReference, weights?: Weights) {
   const explanation = ref && weights ? explainRecommendation(list, ref, weights) : null;
-  return list.map((a) => ({ Supplier: a.name, Fictitious: a.fictitious, Currency: a.baseline.quote.currency, "Original unit price": a.baseline.quote.unit_price,
+  return list.map((a) => ({ Supplier: a.name, Fictitious: yesNo(a.fictitious), Currency: a.baseline.quote.currency, "Original unit price": a.baseline.quote.unit_price,
     "Normalized unit price USD": round2(a.baseline.unitPriceUsd), "Annual material USD": round2(a.material), "Quoted annual freight USD": round2(a.freight), "Quoted annual insurance USD": round2(a.insurance),
-    "Combined freight / insurance adder USD": round2(a.combinedEstimate), Estimated: a.estimated, Incomplete: a.incomplete, "Duties USD": round2(a.duties), "Other adders USD": round2(a.other), "One-time USD": round2(a.oneTime),
+    "Combined freight / insurance adder USD": round2(a.combinedEstimate), Estimated: yesNo(a.estimated), Incomplete: yesNo(a.incomplete), "Duties USD": round2(a.duties), "Other adders USD": round2(a.other), "One-time USD": round2(a.oneTime),
     "Annual landed cost USD": round2(a.annualLanded), "Unit landed cost USD": round2(a.unitLanded), MOQ: a.baseline.quote.moq, "Lead time days": a.baseline.quote.lead_time_days, "Payment days": a.baseline.quote.payment_terms_days,
-    Risk: a.risk, "Risk score": a.riskScore, "Overall score": a.score == null ? null : round2(a.score), Awardable: a.eligible, Eligibility: ELIGIBILITY_LABELS[classifyEligibility(a, a.document).status], ...(explanation ? { "Best Overall": a === explanation.recommended, "Decision explanation": a === explanation.recommended ? explanation.winFactors.join(" ") : explanation.perSupplier.find((p) => p.supplier === a)?.reasons.map((r) => `${REASON_LABELS[r.category]}: ${r.text}`).join(" ") } : {}) }));
+    Risk: a.risk, "Risk score": a.riskScore, "Overall score": a.score == null ? null : round2(a.score), Awardable: yesNo(a.eligible), Eligibility: ELIGIBILITY_LABELS[classifyEligibility(a, a.document).status], ...(explanation ? { "Best Overall": yesNo(a === explanation.recommended), "Decision explanation": a === explanation.recommended ? explanation.winFactors.join(" ") : explanation.perSupplier.find((p) => p.supplier === a)?.reasons.map((r) => `${REASON_LABELS[r.category]}: ${r.text}`).join(" ") } : {}) }));
 }
 export function csvText(list: Intelligence[], ref?: RfqReference, weights?: Weights) {
   const rows = exportRows(list, ref, weights);
@@ -68,7 +68,7 @@ export function analysisSheets(list: Intelligence[], ref: RfqReference, weights:
     add("Supplier Data", list.flatMap((a) => REVIEW_FIELDS.map((f) => ({ Supplier: a.name, Field: f.label, "Original extraction": humanValue(a.document.original?.[f.key]), "Reviewed quotation": humanValue(a.document.reviewed?.[f.key]) }))));
     add("Normalized Cost Data", exportRows(list, ref, weights));
     add("Scoring", list.flatMap((a) => a.contributions.map((c) => ({ Supplier: a.name, Criterion: CRITERIA[c.key], Weight: weights[c.key], Score: round2(c.value), Contribution: round2(c.weighted), Formula: c.reason }))));
-    add("Risk Assessment", list.flatMap((a) => [{ Supplier: a.name, Risk: a.risk, Observation: "Overall risk", Critical: !a.eligible }, ...a.anomalies.map((x) => ({ Supplier: a.name, Risk: a.risk, Observation: x.message, Critical: x.critical }))]));
+    add("Risk Assessment", list.flatMap((a) => [{ Supplier: a.name, Risk: a.risk, Observation: "Overall risk", Critical: yesNo(!a.eligible) }, ...a.anomalies.map((x) => ({ Supplier: a.name, Risk: a.risk, Observation: x.message, Critical: yesNo(x.critical) }))]));
     add("Recommendation", [{ Supplier: insights.recommended?.name ?? "No eligible supplier", "Savings USD": round2(insights.savings), "Baseline": insights.baselineLabel, "Annual landed USD": round2(insights.recommended?.annualLanded ?? null), Why: insights.why ?? "Not provided" }]);
     add("Decision Explanation", explanationRows.map(([Metric, Value]) => ({ Metric, Value })));
     add("Landed Cost Breakdown", breakdowns.flatMap<object>(({ a, b }) => b.validationErrors.length ? b.validationErrors.map((Error) => ({ Supplier: a.name, Error })) : b.components.map((c) => ({ Supplier: a.name, Component: c.label, "Original amount": c.amountOriginal, Currency: c.currencyOriginal, "FX to USD": c.fxRate, "Amount USD": round2(c.amountUsd), Source: SOURCE_LABELS[c.source], Treatment: c.note, Formula: c.formula }))));
