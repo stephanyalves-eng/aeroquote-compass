@@ -1,6 +1,7 @@
 import type { ExtractedQuote, Currency } from "./types";
 
 export type ReviewField = keyof ExtractedQuote;
+export const CRITICAL_FIELDS: ReviewField[] = ["supplier_name", "part_number", "revision", "currency", "unit_price", "quantity_basis", "validity_end_date", "certifications"];
 export interface FieldReviewState { confirmed: boolean; followUp?: boolean; editedAt?: string }
 export type FieldReviewStatus = Partial<Record<ReviewField, FieldReviewState>>;
 export interface ReviewIssue {

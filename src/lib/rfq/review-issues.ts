@@ -3,10 +3,11 @@ import { computeAlerts, daysBetween } from "./rules";
 import { normalizeSupplierName } from "./supplier-name";
 import type { ExtractedQuote, RfqReference } from "./types";
 import type { ReviewField, ReviewIssue } from "./review-types";
+import { CRITICAL_FIELDS } from "./review-types";
+export { CRITICAL_FIELDS } from "./review-types";
 
 export const LOW_CONFIDENCE_THRESHOLD = 70;
 export const BULK_CONFIRM_THRESHOLD = 90;
-export const CRITICAL_FIELDS: ReviewField[] = ["supplier_name", "part_number", "revision", "currency", "unit_price", "quantity_basis", "validity_end_date", "certifications"];
 const optional = new Set<ReviewField>(["notes", "commercial_exceptions", "surcharge_clause"]);
 const order = { critical: 0, missing: 1, low_confidence: 2, divergence: 3, unconfirmed: 4 };
 const empty = (v: unknown) => v == null || (typeof v === "string" && !v.trim()) || (Array.isArray(v) && !v.length);
@@ -86,6 +87,30 @@ export function editReviewDocument(d: QuoteDocument, q: ExtractedQuote, timestam
   // Materialize legacy confirmations before the first edit to preserve unaffected fields.
   if (d.fieldStatus == null && d.confirmed) for (const f of REVIEW_FIELDS) if (!fieldStatus[f.key]) fieldStatus[f.key] = { confirmed: true };
   return { ...d, reviewed: q, fieldStatus, confirmed: false, status: "Needs Review" };
+}
+export function restoreReviewField(d: QuoteDocument, field: ReviewField, timestamp: string): QuoteDocument {
+  if (!d.original || !d.reviewed) return d;
+  const updated = editReviewDocument(d, { ...d.reviewed, [field]: structuredClone(d.original[field]) }, timestamp);
+  return { ...updated, fieldStatus: { ...updated.fieldStatus, [field]: { ...updated.fieldStatus?.[field], confirmed: false, editedAt: timestamp } } };
+}
+export function toggleReviewFollowUp(d: QuoteDocument, field: ReviewField): QuoteDocument {
+  const fieldStatus = { ...d.fieldStatus };
+  if (d.fieldStatus == null && d.confirmed) for (const f of REVIEW_FIELDS) fieldStatus[f.key] = { confirmed: true };
+  fieldStatus[field] = { ...fieldStatus[field], confirmed: fieldConfirmed(d, field), followUp: !d.fieldStatus?.[field]?.followUp };
+  return { ...d, fieldStatus };
+}
+export function bulkReviewPreview(documents: QuoteDocument[], ref: RfqReference, selectedId?: string) {
+  return {
+    globalCount: documents.reduce((n, d) => n + reliableFields(d, documents, ref).length, 0),
+    selectedCount: documents.filter((d) => d.id === selectedId).reduce((n, d) => n + reliableFields(d, documents, ref).length, 0),
+    criticalLeft: documents.reduce((n, d) => n + (d.reviewed ? CRITICAL_FIELDS.filter((key) => !fieldConfirmed(d, key)).length : 0), 0),
+  };
+}
+export const PROCUREMENT_STAGES = ["Quotes received", "AI extraction", "Buyer review", "Comparison & calculation", "Recommendation", "PO creation/upload", "PO Check", "Purchase release"];
+export function procurementStages(documents: QuoteDocument[], step: number, busy: boolean) {
+  const extracted = documents.length > 0 && documents.every((d) => d.original && d.reviewed);
+  const confirmed = documents.length > 0 && documents.every((d) => d.confirmed && quotationConfirmationErrors(d).length === 0);
+  return PROCUREMENT_STAGES.map((label, i) => ({ label, status: i >= 5 ? "Later phase" : i === 0 ? (documents.length ? "Received" : "Pending") : i === 1 ? (busy ? "In progress" : extracted ? "Extracted" : "Pending") : i === 2 ? (confirmed ? "Confirmed" : step === 2 ? "In review" : "Pending") : step === 3 && confirmed ? "Available" : "Pending" }));
 }
 export function reviewSummary(documents: QuoteDocument[], ref: RfqReference) {
   const issues = reviewIssues(documents, ref);

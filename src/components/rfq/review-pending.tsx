@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Check, Pencil, RotateCcw, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { REVIEW_FIELDS, type QuoteDocument } from "@/lib/rfq/workflow";
-import { reviewSummary, fieldConfirmed, formatReviewValue, reliableFields, CRITICAL_FIELDS, LOW_CONFIDENCE_THRESHOLD, BULK_CONFIRM_THRESHOLD } from "@/lib/rfq/review-issues";
+import { reviewSummary, fieldConfirmed, formatReviewValue, bulkReviewPreview, LOW_CONFIDENCE_THRESHOLD, BULK_CONFIRM_THRESHOLD } from "@/lib/rfq/review-issues";
 import type { ReviewField } from "@/lib/rfq/review-types";
 import type { RfqReference } from "@/lib/rfq/types";
 import { Section } from "./primitives";
@@ -23,10 +23,8 @@ export function ReviewPending({ documents, reference, selectedId, onFocus, ...ac
     ["divergence", "Divergences", summary.divergences], ["critical", "Critical blockers", summary.critical], ["confirmed", "Confirmed", confirmed.length],
   ] as const;
   const items = summary.issues.filter((i) => filter === "all" || filter === "review" || i.kind === filter);
-  const globalCount = documents.reduce((n, d) => n + reliableFields(d, documents, reference).length, 0);
+  const { globalCount, selectedCount, criticalLeft } = bulkReviewPreview(documents, reference, selectedId);
   const selected = documents.find((d) => d.id === selectedId);
-  const selectedCount = selected ? reliableFields(selected, documents, reference).length : 0;
-  const criticalLeft = documents.reduce((n, d) => n + (d.reviewed ? CRITICAL_FIELDS.filter((key) => !fieldConfirmed(d, key)).length : 0), 0);
   return <Section title="Review pending items" action={<span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-tertiary">Buyer verification</span>}>
     <dl className="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4">{[
       ["Total quotations", summary.total], ["Quotations confirmed", summary.confirmed], ["Requiring review", summary.requiringReview], ["Confirmed fields", summary.confirmedFields],
