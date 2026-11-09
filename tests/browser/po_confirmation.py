@@ -4,7 +4,7 @@ All screenshots and downloads remain under /tmp/browser/erp-po.
 """
 import asyncio,re,json,os
 from pathlib import Path
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, expect
 async def main():
  async with async_playwright() as p:
   b=await p.chromium.launch(headless=True); pg=await b.new_page(viewport={"width":1280,"height":1800}); errors=[];pg.on('pageerror',lambda e:errors.append(str(e)))
@@ -49,7 +49,7 @@ async def main():
   assert sum(e['name']=='project.po_validated' for e in events)==1,events
   assert sum(e['name']=='project.po_released' for e in events)==1,events
   assert not any(e['name']=='project.po_blocked' for e in events),events
-  await btn('Audit Trail').click();await pg.screenshot(path='/tmp/browser/po-confirmation/audit.png');print('audit matches',await pg.get_by_text('PO supplier confirmation recorded',exact=True).count());print(await pg.get_by_text('PO supplier confirmation recorded',exact=True).evaluate_all('(els)=>els.map(e=>e.outerHTML)'));assert await pg.get_by_text('PO supplier confirmation recorded',exact=True).count()>=2;assert await pg.get_by_text('2027-03-15',exact=False).count()>0;assert await pg.get_by_text('2027-03-20',exact=False).count()>0;await btn('Purchase Orders').click()
+  await btn('Audit Trail').click();await pg.screenshot(path='/tmp/browser/po-confirmation/audit.png');await expect(pg.locator('span.font-medium').filter(has_text='PO supplier confirmation recorded')).to_have_count(2);assert await pg.get_by_text('2027-03-15',exact=False).count()>0;assert await pg.get_by_text('2027-03-20',exact=False).count()>0;await btn('Purchase Orders').click()
   await btn('Create amendment').click();await btn('Confirm amend').click();assert await pg.get_by_text('Draft · Revision 2',exact=True).is_visible();assert await btn('Release purchase').is_disabled()
   assert await pg.get_by_role('region',name='Supplier confirmation',exact=True).get_by_text('Not yet recorded',exact=True).is_visible()
   await btn('PO list').click();await pg.get_by_label('PO RFQ').select_option('RFQ-24410');await pg.get_by_label('PO status').select_option('Superseded');assert await btn('Open PO').count()==1
