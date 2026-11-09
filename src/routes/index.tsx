@@ -71,6 +71,7 @@ import {
 import { buildLandedCostBreakdown } from "@/lib/rfq/landed-cost";
 import { PoPanel } from "@/components/rfq/po-panel";
 import { PoWorkspace } from "@/components/rfq/po-workspace";
+import { recordSupplierConfirmation, supplierConfirmationAudit, type ConfirmationInput } from "@/lib/rfq/po-confirmation";
 import {
   startPoDraft,
   savePoDraft,
@@ -482,6 +483,18 @@ function Index() {
       record(lifecycleAudit(action, poState, next));
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Could not update the purchase order.");
+    }
+  };
+  const saveSupplierConfirmation = (input: ConfirmationInput) => {
+    try {
+      const next = recordSupplierConfirmation(poState, input, poTimestamp(), DEMO_BUYER);
+      setPoState(next);
+      record(supplierConfirmationAudit(poState, next));
+      setNotice("Supplier confirmation recorded.");
+      return true;
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not record supplier confirmation.");
+      return false;
     }
   };
   const recordDecision = (id: string, justification: string) => {
@@ -1534,6 +1547,7 @@ function Index() {
                     context={poContext}
                     blocked={gateBlocked(gate)}
                     onTransition={changePoLifecycle}
+                    onConfirmation={saveSupplierConfirmation}
                     onError={setNotice}
                     draftDirty={poDraftDirty}
                     onExport={() =>

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { PoConfirmation } from "./po-confirmation";
+import type { ConfirmationInput } from "@/lib/rfq/po-confirmation";
 import {
   FileText,
   Download,
@@ -310,6 +312,7 @@ interface Props {
   onError: (message: string) => void;
   onExport: () => void;
   draftDirty: boolean;
+  onConfirmation: (input: ConfirmationInput) => boolean;
 }
 export function PoWorkspace({
   state,
@@ -319,6 +322,7 @@ export function PoWorkspace({
   onError,
   onExport,
   draftDirty,
+  onConfirmation,
 }: Props) {
   const [view, setView] = useState<"check" | "list" | "document">("check"),
     [zoom, setZoom] = useState(100),
@@ -511,6 +515,7 @@ export function PoWorkspace({
           ))}
         </ol>
       )}
+      {view === "check" && <PoConfirmation key={`${state.po?.poNumber}-${state.lifecycle?.revision}`} state={state} onSave={onConfirmation} />}
       {view === "list" && (
         <PoList
           state={state}

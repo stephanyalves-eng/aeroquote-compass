@@ -1,4 +1,5 @@
 import { PO_FIELDS } from "./po-check";
+import { currentSupplierConfirmation } from "./po-confirmation";
 import { humanValue } from "./audit-describe";
 import { lifecycleStatus } from "./po-lifecycle";
 import type { ApprovedPoContext, PoState, PurchaseOrder } from "./po-types";
@@ -25,6 +26,7 @@ export function buildPoDocument(
   const po = state.lifecycle?.issued ?? state.po;
   if (!po) return null;
   const status = lifecycleStatus(state, configurationBlocked);
+  const confirmation = currentSupplierConfirmation(state, po);
   const pairs = (title: string, rows: string[][]): PoDocumentSection => ({
     title,
     columns: ["Field", "Value"],
@@ -56,6 +58,14 @@ export function buildPoDocument(
         ["Freight terms", humanValue(po.incoterm)],
         ["Incoterm place", humanValue(po.incotermPlace)],
         ["Payment terms (days)", humanValue(po.paymentTermsDays)],
+      ]),
+      pairs("Supplier confirmation", [
+        ["Status", confirmation ? "Recorded" : "Not yet recorded"],
+        ["Confirmation date", confirmation?.confirmedOn ?? "Not yet recorded"],
+        ["Expected delivery date", confirmation?.expectedDelivery ?? "Not yet recorded"],
+        ["Confirmation reference", confirmation?.reference || "Not provided"],
+        ["Recorded at", confirmation?.timestamp ?? "Not yet recorded"],
+        ["Recorded by", confirmation?.actor ?? "Not yet recorded"],
       ]),
       {
         title: "Line items",
