@@ -55,3 +55,4 @@ export const SOURCE_LABELS = { extracted: "Extracted", buyer: "Buyer-entered", c
 export function componentDiff(a: LandedCostBreakdown, b: LandedCostBreakdown) {
   return [...new Set([...a.components, ...b.components].map((c) => c.key))].map((key) => { const left = a.components.find((c) => c.key === key), right = b.components.find((c) => c.key === key); return { key, label: left?.label ?? right?.label ?? "Cost component", left: left?.amountUsd ?? null, right: right?.amountUsd ?? null, difference: left && right ? right.amountUsd - left.amountUsd : null }; });
 }
+export function breakdownDifference(a: LandedCostBreakdown, b: LandedCostBreakdown): number | null { return a.annualTotal == null || b.annualTotal == null ? null : b.annualTotal - a.annualTotal; }

@@ -1,5 +1,5 @@
 import { FileText, Pencil, Calculator, Info } from "lucide-react";
-import { buildLandedCostBreakdown, SOURCE_LABELS, componentDiff } from "@/lib/rfq/landed-cost";
+import { buildLandedCostBreakdown, SOURCE_LABELS, componentDiff, breakdownDifference } from "@/lib/rfq/landed-cost";
 import type { Intelligence } from "@/lib/rfq/intelligence";
 import type { RfqReference } from "@/lib/rfq/types";
 import { Money } from "./primitives";
@@ -19,5 +19,5 @@ export function LandedBreakdown({ supplier, reference }: { supplier: Intelligenc
 export function LandedDiff({ left, right, reference }: { left: Intelligence; right: Intelligence; reference: RfqReference }) {
   const a = buildLandedCostBreakdown(left, { reference }), b = buildLandedCostBreakdown(right, { reference });
   if (a.validationErrors.length || b.validationErrors.length) return <p role="alert" className="text-error">Resolve calculation errors before comparing cost components.</p>;
-  return <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-xs"><thead className="bg-surface-sunken"><tr>{["Component", left.name, right.name, "Difference (alternative − recommended)"].map((s) => <th key={s} className="p-3 font-mono uppercase text-text-tertiary">{s}</th>)}</tr></thead><tbody>{componentDiff(a, b).map((r) => <tr key={r.key} className="border-b border-border-subtle"><th className="p-3 font-medium">{r.label}</th><td className="p-3"><Money value={r.left} /></td><td className="p-3"><Money value={r.right} /></td><td className="p-3"><Money value={r.difference} /></td></tr>)}<tr><th className="p-3">Total</th><td className="p-3"><Money value={a.annualTotal} /></td><td className="p-3"><Money value={b.annualTotal} /></td><td className="p-3">{left.annualLanded != null && right.annualLanded != null ? <Money value={right.annualLanded - left.annualLanded} /> : "Not provided"}</td></tr></tbody></table></div>;
+  return <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-xs"><thead className="bg-surface-sunken"><tr>{["Component", left.name, right.name, "Difference (alternative − recommended)"].map((s) => <th key={s} className="p-3 font-mono uppercase text-text-tertiary">{s}</th>)}</tr></thead><tbody>{componentDiff(a, b).map((r) => <tr key={r.key} className="border-b border-border-subtle"><th className="p-3 font-medium">{r.label}</th><td className="p-3"><Money value={r.left} /></td><td className="p-3"><Money value={r.right} /></td><td className="p-3"><Money value={r.difference} /></td></tr>)}<tr><th className="p-3">Total</th><td className="p-3"><Money value={a.annualTotal} /></td><td className="p-3"><Money value={b.annualTotal} /></td><td className="p-3"><Money value={breakdownDifference(a, b)} /></td></tr></tbody></table></div>;
 }
