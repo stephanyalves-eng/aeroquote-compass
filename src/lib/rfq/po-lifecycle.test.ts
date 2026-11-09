@@ -214,7 +214,7 @@ describe("PO lifecycle safeguards", () => {
     const saved = savePoDraft(draft, edited, time, actor);
     expect(saved.po?.unitPrice).toBe(19000);
     expect(saved.result).toBeUndefined();
-    expect(lifecycleAudit("Draft saved", draft, saved).details?.status).toBe("Draft");
+    expect(lifecycleAudit("Draft saved", draft, saved).details?.["status"]).toBe("Draft");
   });
   it("draft evidence never completes the ERP PO-issued stage", () => {
     const steps = erpProcessSteps({

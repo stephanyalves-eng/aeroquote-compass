@@ -359,7 +359,7 @@ function Index() {
     };
     setPoState(next);
     record({
-      action: scenario === "Created from approval" ? "PO created" : "PO loaded",
+      action: "PO loaded",
       newValue: po,
       details: { source: scenario },
     });

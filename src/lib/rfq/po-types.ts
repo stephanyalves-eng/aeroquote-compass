@@ -98,5 +98,5 @@ export interface PoState {
   tolerances: PoTolerances;
   resolutions: PoResolution[];
   released: boolean;
-  lifecycle?: import("./po-lifecycle").PoLifecycle;
+  lifecycle?: import("./po-lifecycle").PoLifecycle | undefined;
 }
