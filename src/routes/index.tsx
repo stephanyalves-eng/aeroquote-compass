@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { StepNav, ProgressLine, TraceabilityMenu, DemoData, BulkConfirmDialog } from "@/components/rfq/shell";
 import { mainSteps, progressSummary, MAIN_STEPS, TRACEABILITY, TRACE_OFFSET } from "@/lib/rfq/navigation";
 import { bulkConfirmPlan } from "@/lib/rfq/bulk-confirm";
+import { pendingReviewBlockers } from "@/lib/rfq/presentation";
 import { SaMonogram } from "@/assets/sa-monogram";
 import { Button } from "@/components/ui/button";
 import { extractQuote } from "@/lib/rfq/extract.functions";
@@ -218,9 +219,9 @@ function Index() {
   const exportSummary = async (format: "pdf" | "xlsx" | "csv") => { try { const { buildDecisionSummary } = await import("@/lib/rfq/decision-summary"); const { exportDecisionSummary } = await import("@/lib/rfq/exports"); await exportDecisionSummary(format, buildDecisionSummary({ reference, documents, list: results, weights, approvedDecision, poState, poApproved: Boolean(poContext), snapshots, timeline }), reference); record({ action: "Decision summary exported", details: { source: format === "xlsx" ? "Excel" : format.toUpperCase() } }); } catch (e) { setNotice(e instanceof Error ? e.message : "Could not export the summary."); } };
   const isSampleSet = documents.length > 0 && documents.every((d) => d.id.startsWith("sample-"));
   const stages = workflowStages({ documents, extracting: busy, comparisonComputed: results.length > 0, recommendationExists: Boolean(recommendedId), decisionApproved: Boolean(approvedDecision), hasPo: Boolean(poState.po), poChecked: Boolean(poState.result), poStatus, configurationBlocked: gateBlocked(gate), revisionMonitoring: alerts.length ? (alerts.some((al) => assessments.filter((z) => z.alertKey === al.key).at(-1)?.level !== "No known impact") ? "In review" : "Confirmed") : snapshots.length ? "Confirmed" : "Pending", investigationConfirmed: investigations.length > 0 && investigations.every((i) => i.confirmed) });
-  const summaryCounts = reviewSummary(documents.filter((d) => !d.excluded), reference);
+  const pendingBlockers = pendingReviewBlockers(documents, reference);
   const blockers = [
-    ...(summaryCounts.critical ? [`${summaryCounts.critical} critical review ${summaryCounts.critical === 1 ? "item" : "items"} in Buyer Validation`] : []),
+    ...(pendingBlockers ? [`${pendingBlockers} critical review ${pendingBlockers === 1 ? "item" : "items"} in Buyer Validation`] : []),
     ...(poStatus === "PO blocked" ? ["PO has critical discrepancies"] : []),
     ...(poState.po && gateBlocked(gate) ? ["Configuration review must be completed before release"] : []),
   ];

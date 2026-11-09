@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pendingItems, poProgress, toggleShortlist, comparisonHighlights } from "./presentation";
+import { pendingItems, poProgress, toggleShortlist, comparisonHighlights, pendingReviewBlockers } from "./presentation";
 import { compareDocuments, DEFAULT_WEIGHTS, decisionInsights } from "./intelligence";
 import { sampleDocuments, sampleReference } from "./phase2-fixtures";
 import { createApprovedDecision } from "./recommendation";
@@ -13,6 +13,12 @@ if (!recommended) throw new Error("Missing recommendation");
 const decision = createApprovedDecision(list, sampleReference, DEFAULT_WEIGHTS, recommended.document.id, "", "2026-10-25");
 const context = buildApprovedPoContext(sampleReference, recommended, decision);
 describe("presentation-only procurement views", () => {
+  it("does not display confirmed award blockers or held quotes as pending validation blockers", () => {
+    expect(pendingReviewBlockers(sampleDocuments, sampleReference)).toBe(0);
+    const unconfirmed = sampleDocuments.map((d) => ({ ...d, confirmed: false, fieldStatus: {} }));
+    expect(pendingReviewBlockers(unconfirmed, sampleReference)).toBeGreaterThan(0);
+    expect(pendingReviewBlockers(unconfirmed.map((d) => ({ ...d, excluded: true })), sampleReference)).toBe(0);
+  });
   it("limits shortlist to four, removes selections and leaves source untouched", () => {
     const ids = ["a", "b", "c", "d"];
     expect(toggleShortlist(ids, "e")).toEqual(ids);

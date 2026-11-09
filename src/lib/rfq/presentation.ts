@@ -4,6 +4,18 @@ import type { ReviewIssue } from "./review-types";
 import type { PoState } from "./po-types";
 import { poSummary } from "./po-check";
 import { sameSupplier } from "./supplier-name";
+import { reviewSummary, fieldConfirmed, quotationConfirmationErrors } from "./review-issues";
+import type { QuoteDocument } from "./workflow";
+
+/** Accurate acknowledged award blockers are not pending buyer-validation tasks. */
+export function pendingReviewBlockers(documents: QuoteDocument[], reference: RfqReference) {
+  const included = documents.filter((d) => !d.excluded);
+  return reviewSummary(included, reference).issues.filter((i) => {
+    if (i.kind !== "critical") return false;
+    const d = included.find((x) => x.id === i.documentId);
+    return Boolean(d && (!fieldConfirmed(d, i.field.key) || quotationConfirmationErrors(d).length));
+  }).length;
+}
 
 /** Shortlists change the view only, never award eligibility or calculations. */
 export function toggleShortlist(selected: readonly string[], id: string): string[] {
