@@ -18,6 +18,8 @@ export interface QuoteDocument {
   reviewed?: ExtractedQuote | undefined;
   confirmed: boolean;
   fieldStatus?: FieldReviewStatus;
+  /** Buyer held this quotation out of comparison (e.g. awaiting supplier clarification). Optional for old snapshots. */
+  excluded?: boolean;
 }
 export const newReference = (): RfqReference => ({
   rfqNumber: "", partNumber: "", revision: "", annualVolume: 12,
@@ -62,7 +64,7 @@ export function averageConfidence(q: ExtractedQuote): number | null {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
 export function canCompare(documents: QuoteDocument[], ref: RfqReference) {
-  return referenceErrors(ref).length === 0 && documents.length > 0 && documents.every((d) => d.confirmed && d.reviewed && quoteErrors(d.reviewed).length === 0 && d.status === "Extracted" && (d.fieldStatus == null || CRITICAL_FIELDS.every((key) => d.fieldStatus?.[key]?.confirmed)));
+  return referenceErrors(ref).length === 0 && documents.some((d) => !d.excluded) && documents.filter((d) => !d.excluded).every((d) => d.confirmed && d.reviewed && quoteErrors(d.reviewed).length === 0 && d.status === "Extracted" && (d.fieldStatus == null || CRITICAL_FIELDS.every((key) => d.fieldStatus?.[key]?.confirmed)));
 }
 /** Local calendar date (YYYY-MM-DD), not UTC: after 21:00 in Brazil UTC is already tomorrow. */
 export function localToday(): string {
