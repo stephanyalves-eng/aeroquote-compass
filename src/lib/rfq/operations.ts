@@ -92,6 +92,121 @@ export function savedOperationalSummary(
     approved: Boolean(snapshot.approvedDecision),
   });
 }
+export type AttentionSeverity = "Critical" | "High" | "Medium";
+export interface AttentionItem {
+  id: string;
+  process: string;
+  reason: string;
+  owner: string;
+  due: string | null;
+  severity: AttentionSeverity;
+  nextAction: string;
+  step: number;
+}
+const SEVERITY_ORDER: Record<AttentionSeverity, number> = { Critical: 0, High: 1, Medium: 2 };
+/**
+ * "Requires attention" list for the ERP dashboard, ordered by severity then due date.
+ * Derived from the same evidence as operationalSummary; never from navigation state.
+ */
+export function requiresAttention(input: OperationInput): AttentionItem[] {
+  const { reference, documents } = input;
+  const items: AttentionItem[] = [];
+  const pending = documents.filter(
+    (d) => !d.excluded && (!d.confirmed || quotationConfirmationErrors(d).length),
+  );
+  const summary = poSummary(input.poState?.result, input.poState?.resolutions);
+  const blockedPo = Boolean(
+    input.poState?.po &&
+    (summary.blockers ||
+      input.poState.result?.validationErrors.length ||
+      input.configurationBlocked),
+  );
+  const revisions = unresolvedRevisionAlerts(input.alerts ?? [], input.assessments ?? []);
+  const expiring = documents.filter((d) => {
+    const until = d.reviewed?.validity_end_date ?? d.original?.validity_end_date;
+    return (
+      until && daysBetween(reference.today, until) >= 0 && daysBetween(reference.today, until) < 30
+    );
+  });
+  const investigations = (input.investigations ?? []).filter((i) => !i.confirmed);
+  const comparisonReady =
+    documents.length > 0 &&
+    documents.every((d) => d.original && d.reviewed) &&
+    pending.length === 0;
+
+  if (blockedPo)
+    items.push({
+      id: "po-blocked",
+      process: "Purchase Order",
+      reason: `${input.poState?.po?.poNumber ?? "PO"} has ${summary.blockers} critical ${summary.blockers === 1 ? "discrepancy" : "discrepancies"}${input.configurationBlocked ? " and a pending configuration review" : ""}.`,
+      owner: "Marina Costa (Demo buyer)",
+      due: reference.requiredDeliveryDate ?? null,
+      severity: "Critical",
+      nextAction: "Review PO discrepancies",
+      step: 5,
+    });
+  if (pending.length)
+    items.push({
+      id: "validation",
+      process: "Buyer Validation",
+      reason: `${pending.length} ${pending.length === 1 ? "quotation" : "quotations"} awaiting buyer validation.`,
+      owner: "Marina Costa (Demo buyer)",
+      due: null,
+      severity: "High",
+      nextAction: "Validate quotations",
+      step: 2,
+    });
+  if (comparisonReady && !input.approved)
+    items.push({
+      id: "decision",
+      process: "Decision",
+      reason: "Comparison is complete; the sourcing decision has not been recorded.",
+      owner: "Marina Costa (Demo buyer)",
+      due: null,
+      severity: "High",
+      nextAction: "Record decision",
+      step: 4,
+    });
+  for (const { alert } of revisions)
+    items.push({
+      id: `revision-${alert.key}`,
+      process: "Configuration",
+      reason: `${alert.documentNumber} revised ${alert.previousRevision} → ${alert.newRevision}; impact not assessed.`,
+      owner: "Rafael Lima (Demo engineer)",
+      due: null,
+      severity: "High",
+      nextAction: "Assess revision impact",
+      step: 6,
+    });
+  for (const d of expiring)
+    items.push({
+      id: `expiring-${d.id}`,
+      process: "Quotations",
+      reason: `${d.fileName} validity ends soon.`,
+      owner: "Marina Costa (Demo buyer)",
+      due: d.reviewed?.validity_end_date ?? d.original?.validity_end_date ?? null,
+      severity: "Medium",
+      nextAction: "Review quote validity",
+      step: 2,
+    });
+  for (const i of investigations)
+    items.push({
+      id: `investigation-${i.failureId}`,
+      process: "Investigation",
+      reason: `${i.failureId} · suggested classification: ${i.suggested}.`,
+      owner: "Rafael Lima (Demo engineer)",
+      due: null,
+      severity: "Medium",
+      nextAction: "Open investigation",
+      step: 8,
+    });
+  return items.sort(
+    (a, b) =>
+      SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] ||
+      (a.due ?? "9999").localeCompare(b.due ?? "9999"),
+  );
+}
+
 /** Current analysis only; saved RFQs are summarized independently under owner-only History. */
 export function operationalSummary(input: OperationInput): OperationItem[] {
   const { reference, documents } = input;

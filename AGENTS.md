@@ -28,3 +28,4 @@
 
 - Round 3 simulations clone confirmed quotations in scenarios.ts and reuse existing cost/scoring engines, preserving baseline award blockers and canonical approvals; scenario drafts are never saved or exported as decisions. Why: what-if experiments must not alter procurement evidence.
 - Revision diffs compare recorded registry metadata and immutable check snapshots in revision-diff.ts; operations.ts derives current and saved RFQ attention summaries. Why: never infer engineering dimensions or operational state from summary costs.
+- The ERP shell stays a single-route state machine: sidebar/search/dashboard models live in pure erp-nav.ts, search.ts and operations.ts (requiresAttention), rendered by components/rfq/erp-shell.tsx; the dashboard is step -1 of the existing step state. Why: workflow state must not be split across routes, and navigation evidence stays deterministic and testable.
