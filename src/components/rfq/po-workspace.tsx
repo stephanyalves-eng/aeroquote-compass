@@ -66,7 +66,7 @@ function DocumentContent({ doc, zoom = 100 }: { doc: PoDocument; zoom?: number }
             </dl>
           ) : (
             <div className="mt-3 overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="mobile-data-table w-full text-left text-sm">
                 <thead>
                   <tr>
                     {s.columns.map((c) => (
@@ -80,7 +80,7 @@ function DocumentContent({ doc, zoom = 100 }: { doc: PoDocument; zoom?: number }
                   {s.rows.map((r, i) => (
                     <tr key={i}>
                       {r.map((v, j) => (
-                        <td key={j} className="min-w-24 border-b border-border-subtle p-2">
+                        <td key={j} data-label={s.columns[j]} className="min-w-24 border-b border-border-subtle p-2">
                           {v}
                         </td>
                       ))}
