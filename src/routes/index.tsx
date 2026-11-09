@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState, useRef } from "react";
-import { ArrowRight, ArrowLeft, Save, History as HistoryIcon, Plus, Menu, Undo2 } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { StepNav, ProgressLine, TraceabilityMenu, DemoData, BulkConfirmDialog } from "@/components/rfq/shell";
-import { mainSteps, progressSummary, MAIN_STEPS, TRACEABILITY, TRACE_OFFSET } from "@/lib/rfq/navigation";
+import { ArrowRight, ArrowLeft, Save, Undo2 } from "lucide-react";
+import { DemoData, BulkConfirmDialog } from "@/components/rfq/shell";
+import { ErpSidebar, MobileNav, GlobalSearch, Notifications, Breadcrumb, DemoUser, ProcessStepper, RecordHeader, DashboardView } from "@/components/rfq/erp-shell";
+import { erpProcessSteps, DASHBOARD_STEP } from "@/lib/rfq/erp-nav";
+import { buildSearchEntries, globalSearch } from "@/lib/rfq/search";
+import { requiresAttention } from "@/lib/rfq/operations";
+import { MAIN_STEPS, TRACEABILITY, TRACE_OFFSET } from "@/lib/rfq/navigation";
 import { ScenarioPanel } from "@/components/rfq/scenario-panel";
 import { OperationalPanel } from "@/components/rfq/operational-panel";
 import { operationalSummary } from "@/lib/rfq/operations";
@@ -65,7 +68,7 @@ function Index() {
   const [reference, setReference] = useState(newReference);
   const [documents, setDocuments] = useState<QuoteDocument[]>([]);
   const [weights, setWeights] = useState({ ...DEFAULT_WEIGHTS });
-  const [step, setStep] = useState(0); const [history, setHistory] = useState(false);
+  const [step, setStep] = useState(DASHBOARD_STEP); const [history, setHistory] = useState(false);
   const [busy, setBusy] = useState(false); const processing = useRef(false);
   const [notice, setNotice] = useState(""); const [status, setStatus] = useState<RfqStatus>("Draft");
   const [savedId, setSavedId] = useState<string | undefined>();
