@@ -93,7 +93,7 @@ export interface PoResolution {
   actor: string;
 }
 export interface PoState {
-  supplierConfirmations?: import("./po-confirmation").SupplierConfirmation[];
+  supplierConfirmations?: import("./po-confirmation").SupplierConfirmation[] | undefined;
   po?: PurchaseOrder | undefined;
   result?: PoCheckResult | undefined;
   tolerances: PoTolerances;
