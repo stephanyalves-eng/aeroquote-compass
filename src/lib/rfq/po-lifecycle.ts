@@ -59,7 +59,8 @@ export function lifecycleStatus(state: PoState, configurationBlocked = false): P
   if (state.result && summary.discrepancies) return "Requires correction";
   if (state.released && summary.canRelease && !configurationBlocked) return "Released";
   if (l?.phase === "Verified" && summary.canRelease) return "Verified";
-  if (state.result && summary.canRelease) return !l || l.phase === "Awaiting release" ? "Awaiting release" : "Verified";
+  if (state.result && summary.canRelease)
+    return !l || l.phase === "Awaiting release" ? "Awaiting release" : "Verified";
   return l?.phase === "Issued" ? "Issued" : "Awaiting verification";
 }
 export const poEditingAllowed = (state: PoState) =>
