@@ -13,7 +13,8 @@ export type ConfirmationInput = Pick<
   SupplierConfirmation,
   "confirmedOn" | "expectedDelivery" | "reference"
 >;
-const fingerprint = (po: PurchaseOrder) => JSON.stringify(Object.entries(po).sort(([a], [b]) => a.localeCompare(b)));
+const fingerprint = (po: PurchaseOrder) =>
+  JSON.stringify(Object.entries(po).sort(([a], [b]) => a.localeCompare(b)));
 export function currentSupplierConfirmation(
   state: PoState,
   po = state.lifecycle?.issued ?? state.po,
