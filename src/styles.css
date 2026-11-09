@@ -249,3 +249,8 @@
   .po-check-item > dl, .po-check-item > p { display: block; }
   .po-check-item > dl { display: grid; grid-template-columns: minmax(0, 1fr); }
 }
+
+.comparison-hide-logistics :is(th, td):nth-child(n+3):nth-child(-n+8),
+.comparison-hide-commercial :is(th, td):nth-child(n+10):nth-child(-n+14),
+.comparison-hide-scores :is(th, td):nth-child(n+15) { display: none; }
+.explorer-table :is(th, td):nth-child(2) { position: sticky; left: 0; background: var(--surface-card); z-index: 10; }
