@@ -69,6 +69,10 @@ export function localToday(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+export const DEMO_ANALYSIS_DATE = "2026-10-25";
+export function analysisDateFor(synthetic: boolean): Pick<RfqReference, "today" | "demoAnalysis"> {
+  return { today: synthetic ? DEMO_ANALYSIS_DATE : localToday(), demoAnalysis: synthetic };
+}
 /**
  * Bulk extraction (no id) only queues untouched documents: Ready or Error.
  * Already extracted or buyer-edited documents are re-extracted only via the per-row Reprocess button (id given).

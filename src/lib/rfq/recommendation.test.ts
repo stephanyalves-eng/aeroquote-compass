@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { compareDocuments, DEFAULT_WEIGHTS } from "./intelligence";
 import { classifyEligibility } from "./eligibility";
-import { explainRecommendation, createApprovedDecision, decisionErrors, costChartDomain } from "./recommendation";
+import { explainRecommendation, createApprovedDecision, decisionErrors, costChartDomain, recommendationRobustness } from "./recommendation";
+import { analysisDateFor, localToday } from "./workflow";
 import { sampleDocuments, sampleReference } from "./phase2-fixtures";
 import { editReviewDocument, confirmReviewFields, CRITICAL_FIELDS, procurementStages } from "./review-issues";
 describe("Phase 2 eligibility, explanations and decisions", () => {
   const list = compareDocuments(sampleDocuments, sampleReference, DEFAULT_WEIGHTS);
+  it("uses the fixed synthetic date only for samples", () => { expect(analysisDateFor(true)).toEqual({ today: "2026-10-25", demoAnalysis: true }); expect(analysisDateFor(false)).toEqual({ today: localToday(), demoAnalysis: false }); });
+  it.each([[10, 3, "Robust"], [5, 1, "Moderate"], [10, 0.5, "Sensitive"], [4.99, 3, "Sensitive"], [null, null, "Sensitive"]] as const)("classifies observed score gap %s and cost gap %s", (score, cost, status) => { expect(recommendationRobustness(score, cost)).toBe(status); });
   it("recommends only Atlas and preserves annual savings", () => { const e = explainRecommendation(list, sampleReference, DEFAULT_WEIGHTS); expect(e.recommended?.name).toBe("Atlas Controls INC"); expect(e.annualLanded).toBe(230256); expect(e.incumbentSavings).toBe(7544); expect(e.nextSavings).toBe(7544); expect(e.next?.name).toBe("Meridian Flight Components LLC"); });
   it("never recommends disqualified suppliers", () => { expect(explainRecommendation(list.filter((a) => !a.eligible), sampleReference, DEFAULT_WEIGHTS).recommended).toBeNull(); });
   it("explicitly disqualifies Polar for revision rather than low score", () => { const p = explainRecommendation(list, sampleReference, DEFAULT_WEIGHTS).perSupplier.find((p) => p.supplier.name.startsWith("Polar")); expect(p?.reasons).toContainEqual({ category: "disqualified_by_blocker", text: "Quoted Rev B, requested Rev C." }); expect(p?.reasons.some((r) => r.category === "lower_score")).toBe(false); });

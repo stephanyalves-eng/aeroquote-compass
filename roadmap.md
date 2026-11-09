@@ -1,5 +1,5 @@
 # AeroQuote Compass
-- [ ] Phase 2: coherent demo date, deterministic landed-cost breakdown / eligibility / explanation, recorded decisions and snapshot persistence, expanded comparison and exports; tests and desktop/mobile verification.
+- [x] Phase 2: coherent synthetic date; pure landed-cost reconciliation / scenario inputs, eligibility, explanation and decision validation; expandable mobile costs, component comparison, zero-baseline charts and enhanced exports. Sample extraction / four confirmations / override validation / all downloads / private save-reopen / approval invalidation verified at 1280px and 390px, no overflow or page errors. Legacy rules and sample totals unchanged; later PO checks remain inactive.
 - [x] Phase 1: review issues, individual/bulk confirmation, demo audit events and backward-compatible snapshots; 107 tests pass, desktop/mobile sample review and focus/actions verified, all exports download, private save/reopen retains confirmations. Legacy rules, sample text, costs and Atlas recommendation unchanged at 2026-10-25.
 - [x] Align Best Overall with eligible recommendation and correct plurality wording; all 78 tests pass and live sample extraction → four confirmations → comparison verifies Atlas badge, unchanged costs and savings.
 - [x] Extend RFQ setup, batch uploads and extraction metadata; preserve legacy rules.

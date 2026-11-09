@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { extractQuote } from "@/lib/rfq/extract.functions";
 import { saveHistory } from "@/lib/rfq/history.functions";
 import { SAMPLE_QUOTES } from "@/lib/rfq/samples";
-import { newReference, referenceErrors, canCompare, MAX_FILES, localToday, extractQueue, type QuoteDocument, type RfqStatus } from "@/lib/rfq/workflow";
+import { newReference, referenceErrors, canCompare, MAX_FILES, localToday, analysisDateFor, extractQueue, type QuoteDocument, type RfqStatus } from "@/lib/rfq/workflow";
 import { readQuoteFile } from "@/lib/rfq/files";
 import { compareDocuments, decisionInsights, DEFAULT_WEIGHTS } from "@/lib/rfq/intelligence";
 import { Setup } from "@/components/rfq/setup";
@@ -47,7 +47,7 @@ function Index() {
   const [approvedDecision, setApprovedDecision] = useState<ApprovedDecision>();
   const reopening = useRef(false);
   useEffect(() => { if (reopening.current) { reopening.current = false; return; } setApprovedDecision(undefined); }, [documents, reference, weights]);
-  const record = (event: Omit<AuditEvent, "id" | "timestamp" | "actor">) => setAuditEvents((events) => [...events, createAuditEvent({ ...event, id: crypto.randomUUID(), timestamp: new Date().toISOString() })]);
+  const record = (event: Omit<AuditEvent, "id" | "timestamp" | "actor">) => setAuditEvents((events) => [...events, createAuditEvent({ ...event, id: crypto.randomUUID(), timestamp: reference.demoAnalysis ? `${reference.today}T12:00:00.000Z` : new Date().toISOString() })]);
   const [saving, setSaving] = useState(false);
   const extract = useServerFn(extractQuote); const save = useServerFn(saveHistory);
   useEffect(() => setReference((r) => ({ ...r, today: r.today || localToday() })), []);
@@ -78,7 +78,7 @@ function Index() {
   const restoreField = (id: string, field: ReviewField) => { const d = documents.find((x) => x.id === id); if (!d?.original || !d.reviewed) return; patch(id, restoreReviewField(d, field, new Date().toISOString())); record({ action: "Field restored", documentId: id, field, previousValue: d.reviewed[field], newValue: d.original[field] }); setStatus("Draft"); };
   const loadSamples = () => {
     setAuditEvents([]);
-    setReference((r) => ({ ...r, today: "2026-10-25", demoAnalysis: true, rfqNumber: "RFQ-24410", partNumber: "PN-45Y1258", revision: "C", annualVolume: 12, description: "Hydraulic actuator Y8", category: "Hydraulic systems", requiredDeliveryDate: "2027-03-15", deliveryLocation: "São José dos Campos", incumbentSupplier: "Meridian Flight Components LLC", targetCost: null }));
+    setReference((r) => ({ ...r, ...analysisDateFor(true), rfqNumber: "RFQ-24410", partNumber: "PN-45Y1258", revision: "C", annualVolume: 12, description: "Hydraulic actuator Y8", category: "Hydraulic systems", requiredDeliveryDate: "2027-03-15", deliveryLocation: "São José dos Campos", incumbentSupplier: "Meridian Flight Components LLC", targetCost: null }));
     setDocuments(SAMPLE_QUOTES.map((text, i) => ({ id: crypto.randomUUID(), text, fileName: ["atlas-quote.txt", "helix-quote.txt", "polar-quote.txt", "meridian-quote.txt"][i] ?? `sample-${i}.txt`, fileType: "txt", status: "Ready", confirmed: false })));
     setStep(1); setHistory(false); setStatus("Draft"); setSavedId(undefined); setNotice("");
   };
@@ -86,7 +86,7 @@ function Index() {
     if (processing.current || documents.some((d) => d.status === "Uploading")) return;
     const capacity = MAX_FILES - documents.length;
     if (incoming.length > capacity) { setNotice(`A maximum of ${MAX_FILES} files is allowed per RFQ. No files added.`); return; }
-    setReference((r) => ({ ...r, today: localToday(), demoAnalysis: false }));
+    setReference((r) => ({ ...r, ...analysisDateFor(false) }));
     const added: QuoteDocument[] = incoming.map((f) => ({ id: crypto.randomUUID(), text: "", fileName: f.name, fileType: f.name.split(".").pop()?.toLowerCase() ?? "", status: "Uploading", confirmed: false }));
     setDocuments((ds) => [...ds, ...added]); setNotice(""); setStatus("Draft");
     await Promise.all(incoming.map(async (f, i) => { const d = added[i]; if (!d) return; try { const content = await readQuoteFile(f); patch(d.id, { ...content, status: "Ready" }); } catch (e) { patch(d.id, { status: "Error", error: e instanceof Error ? e.message : "Corrupted file." }); } }));

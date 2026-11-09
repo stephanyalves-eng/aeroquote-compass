@@ -5,6 +5,9 @@ import { DEMO_BUYER } from "./audit";
 export const ROBUSTNESS_TOOLTIP = "Robust: score lead ≥ 10 points and absolute cost gap ≥ 3%. Moderate: score lead ≥ 5 points and absolute cost gap ≥ 1%. Otherwise Sensitive. With no eligible alternative: Sensitive (no competitive comparison). These are deterministic indicators, not a weight-sensitivity simulation.";
 export type WhyNotCategory = "disqualified_by_blocker" | "higher_total_cost" | "lower_score" | "relevant_risk" | "expired_quote" | "missing_certification_or_requirement";
 export const REASON_LABELS: Record<WhyNotCategory, string> = { disqualified_by_blocker: "Disqualified by blocker", higher_total_cost: "Higher total cost", lower_score: "Lower score", relevant_risk: "Relevant risk", expired_quote: "Expired quotation", missing_certification_or_requirement: "Missing certification or requirement" };
+export function recommendationRobustness(scoreGap: number | null, costGapPercent: number | null): "Robust" | "Moderate" | "Sensitive" {
+  return scoreGap != null && costGapPercent != null && scoreGap >= 10 && Math.abs(costGapPercent) >= 3 ? "Robust" : scoreGap != null && costGapPercent != null && scoreGap >= 5 && Math.abs(costGapPercent) >= 1 ? "Moderate" : "Sensitive";
+}
 const money = (n: number) => `USD ${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 export function explainRecommendation(list: Intelligence[], reference: RfqReference, weights: Weights) {
   const insight = decisionInsights(list, reference);
@@ -15,7 +18,7 @@ export function explainRecommendation(list: Intelligence[], reference: RfqRefere
   const nextPercent = nextSavings != null && next?.annualLanded ? nextSavings / next.annualLanded * 100 : null;
   const scoreGap = next?.score != null && recommended?.score != null ? recommended.score - next.score : null;
   // Thresholds intentionally describe observed gaps only, not simulated scenario stability.
-  const robustness = scoreGap != null && nextPercent != null && scoreGap >= 10 && Math.abs(nextPercent) >= 3 ? "Robust" : scoreGap != null && nextPercent != null && scoreGap >= 5 && Math.abs(nextPercent) >= 1 ? "Moderate" : "Sensitive";
+  const robustness = recommendationRobustness(scoreGap, nextPercent);
   const winFactors: string[] = [];
   if (recommended) {
     const peers = [recommended, ...eligible];
