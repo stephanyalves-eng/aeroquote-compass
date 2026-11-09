@@ -16,3 +16,4 @@
 - RFQ history is Cloud-persisted with authenticated owner-only access; analysis and exports remain public without sign-in. Why: protect commercial data while retaining the portfolio demo workflow.
 - Spreadsheet reading and PDF/Excel downloads are dynamically loaded in browser event handlers. Why: avoid browser-only library evaluation during Worker SSR.
 - Review issues and field transitions live in pure review-issues helpers, separate from confirmed-only intelligence; optional field state and demo audit events persist in snapshots. Why: review acknowledgements must not alter calculations or award eligibility, and old history must reopen.
+- Landed-cost provenance, scenario inputs, eligibility explanation and decision validation live in pure domain modules; optional approved decisions persist alongside audit events and are invalidated on analysis changes. Why: later scenario / PO phases must reuse deterministic calculations without stale approvals.

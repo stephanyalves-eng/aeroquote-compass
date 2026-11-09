@@ -44,6 +44,7 @@ export interface RfqReference {
   eurBrl: number;
   incotermAdders: Record<string, number>; // percent, keyed by group
   today: string; // ISO yyyy-mm-dd
+  demoAnalysis?: boolean;
   description?: string;
   category?: string;
   requiredDeliveryDate?: string;
