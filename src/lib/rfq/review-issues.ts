@@ -109,10 +109,10 @@ export function bulkReviewPreview(documents: QuoteDocument[], ref: RfqReference,
   };
 }
 export const PROCUREMENT_STAGES = ["Quotes received", "AI extraction", "Buyer review", "Comparison & calculation", "Recommendation", "PO creation/upload", "PO Check", "Purchase release"];
-export function procurementStages(documents: QuoteDocument[], step: number, busy: boolean, approved = false) {
+export function procurementStages(documents: QuoteDocument[], step: number, busy: boolean, approved = false, poStatus?: string, hasPo = false, checkedPo = false) {
   const extracted = documents.length > 0 && documents.every((d) => d.original && d.reviewed);
   const confirmed = documents.length > 0 && documents.every((d) => d.confirmed && quotationConfirmationErrors(d).length === 0);
-  return PROCUREMENT_STAGES.map((label, i) => ({ label, status: i === 4 && approved && confirmed ? "Confirmed" : i === 5 && approved && confirmed ? "Available" : i >= 5 ? "Later phase" : i === 0 ? (documents.length ? "Received" : "Pending") : i === 1 ? (busy ? "In progress" : extracted ? "Extracted" : "Pending") : i === 2 ? (confirmed ? "Confirmed" : step === 2 ? "In review" : "Pending") : step === 3 && confirmed ? "Available" : "Pending" }));
+  return PROCUREMENT_STAGES.map((label, i) => ({ label, status: i >= 5 && approved && (hasPo || checkedPo) ? (i === 5 ? "Received" : i === 6 ? (poStatus === "PO blocked" ? "Blocked" : poStatus === "PO with discrepancies" ? "In review" : checkedPo ? "Confirmed" : "Pending") : poStatus === "PO checked and released" ? "Confirmed" : "Pending") : i === 4 && approved && confirmed ? "Confirmed" : i === 5 && approved && confirmed ? "Available" : i >= 5 ? poStatus == null ? "Later phase" : "Pending" : i === 0 ? (documents.length ? "Received" : "Pending") : i === 1 ? (busy ? "In progress" : extracted ? "Extracted" : "Pending") : i === 2 ? (confirmed ? "Confirmed" : step === 2 ? "In review" : "Pending") : step >= 3 && confirmed ? "Available" : "Pending" }));
 }
 export function reviewSummary(documents: QuoteDocument[], ref: RfqReference) {
   const issues = reviewIssues(documents, ref);
