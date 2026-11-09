@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "events": {
+    "project.po_blocked": {
+      "event_schema_version": 1,
+      "description": "A completed PO check finds critical blockers or validation errors, or a verification/release action is blocked by configuration or release gates.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "synthetic",
+          "reason",
+          "blockers"
+        ],
+        "properties": {
+          "synthetic": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "verification",
+              "configuration",
+              "release_gate"
+            ]
+          },
+          "blockers": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "project.po_issued": {
+      "event_schema_version": 1,
+      "description": "An issued PO is successfully created by the explicit Issue action.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "synthetic"
+        ],
+        "properties": {
+          "synthetic": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "project.po_released": {
+      "event_schema_version": 1,
+      "description": "A PO is successfully released after the existing procurement gates pass.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "synthetic"
+        ],
+        "properties": {
+          "synthetic": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "project.po_validated": {
+      "event_schema_version": 1,
+      "description": "A PO check completes, including explicit checks and pre-checked demo loads. Valid means no validation errors or critical blockers; review items may remain.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "synthetic",
+          "blockers",
+          "discrepancies",
+          "valid"
+        ],
+        "properties": {
+          "synthetic": {
+            "type": "boolean"
+          },
+          "blockers": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "discrepancies": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
