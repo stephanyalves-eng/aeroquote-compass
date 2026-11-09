@@ -20,6 +20,40 @@
           }
         }
       }
+    },
+    "project.po_validated": {
+      "event_schema_version": 1,
+      "description": "A PO check completes, including explicit checks and pre-checked demo loads. Valid means no validation errors or critical blockers; review items may remain.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "synthetic",
+          "blockers",
+          "discrepancies",
+          "valid"
+        ],
+        "properties": {
+          "synthetic": {
+            "type": "boolean"
+          },
+          "blockers": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "discrepancies": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        }
+      }
     }
   }
 }

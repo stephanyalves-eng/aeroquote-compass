@@ -515,7 +515,13 @@ export function PoWorkspace({
           ))}
         </ol>
       )}
-      {view === "check" && <PoConfirmation key={`${state.po?.poNumber}-${state.lifecycle?.revision}`} state={state} onSave={onConfirmation} />}
+      {view === "check" && (
+        <PoConfirmation
+          key={`${state.po?.poNumber}-${state.lifecycle?.revision}`}
+          state={state}
+          onSave={onConfirmation}
+        />
+      )}
       {view === "list" && (
         <PoList
           state={state}
