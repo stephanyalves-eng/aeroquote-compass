@@ -17,7 +17,8 @@ EXPECT = {
   "Wrong supplier": ("PO blocked", False, False),
   "Previous drawing revision": ("PO blocked", False, False),
 }
-STATUS = re.compile(r"PO checked and released|PO checked, awaiting release|PO with discrepancies|PO blocked|PO awaiting check")
+STATUSES = ["PO checked and released", "PO checked, awaiting release", "PO with discrepancies", "PO blocked", "PO awaiting check"]
+STATUS = re.compile("|".join(map(re.escape, STATUSES)), re.I)
 results = []
 def check(name, ok, detail=""):
   results.append((name, bool(ok))); print(("PASS " if ok else "FAIL ") + name + (f" — {detail}" if detail and not ok else ""))
@@ -29,7 +30,7 @@ async def main():
     btn = lambda n: pg.get_by_role("button", name=n, exact=True)
     main_text = lambda: pg.locator("main").inner_text()
     async def status():
-      m = STATUS.search(await pg.get_by_role("heading", name="Purchase Order Check", exact=True).locator("xpath=ancestor::section[1]").inner_text()); return m.group(0) if m else None
+      m = STATUS.search(await pg.get_by_role("heading", name="Purchase Order Check", exact=True).locator("xpath=ancestor::section[1]").inner_text()); return next((x for x in STATUSES if m and x.lower() == m.group(0).lower()), None)  # badges render uppercase
     await pg.goto(URL, wait_until="networkidle")
     await btn("Load extended sample (20 quotes)").click(); await btn("Validate sample quotes (demo)").click()
     await btn("Compare & Decide").last.click()
