@@ -1,3 +1,5 @@
+import { humanValue } from "./audit-describe";
+import { REVIEW_FIELDS } from "./workflow";
 import type { RfqReference } from "./types";
 import { CRITERIA, decisionInsights, type Intelligence, type Weights } from "./intelligence";
 
@@ -5,7 +7,7 @@ import { explainRecommendation, REASON_LABELS } from "./recommendation";
 import { buildLandedCostBreakdown, SOURCE_LABELS } from "./landed-cost";
 import { classifyEligibility, ELIGIBILITY_LABELS } from "./eligibility";
 
-const value = (x: unknown): string => x == null ? "Not provided" : typeof x === "object" ? JSON.stringify(x) : String(x);
+const value = (x: unknown): string => humanValue(x);
 const round2 = (n: number | null): number | null => n == null ? null : Math.round(n * 100) / 100;
 const usd = (n: number | null | undefined): string => n == null ? "Not provided" : n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 const score1 = (n: number | null | undefined): string => n == null ? "Not provided" : n.toFixed(1);
@@ -62,7 +64,7 @@ export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intel
     const X = await import("xlsx"); const wb = X.utils.book_new();
     const add = (name: string, rows: object[]) => X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows), name);
     add("RFQ Data", Object.entries(ref).map(([Field, v]) => ({ Field: REF_LABELS[Field] ?? "RFQ information", Value: refValue(Field, v) })));
-    add("Supplier Data", list.map((a) => ({ Supplier: a.name, "Original extraction": value(a.document.original), "Reviewed quotation": value(a.document.reviewed) })));
+    add("Supplier Data", list.flatMap((a) => REVIEW_FIELDS.map((f) => ({ Supplier: a.name, Field: f.label, "Original extraction": humanValue(a.document.original?.[f.key]), "Reviewed quotation": humanValue(a.document.reviewed?.[f.key]) }))));
     add("Normalized Cost Data", exportRows(list, ref, weights));
     add("Scoring", list.flatMap((a) => a.contributions.map((c) => ({ Supplier: a.name, Criterion: CRITERIA[c.key], Weight: weights[c.key], Score: round2(c.value), Contribution: round2(c.weighted), Formula: c.reason }))));
     add("Risk Assessment", list.flatMap((a) => [{ Supplier: a.name, Risk: a.risk, Observation: "Overall risk", Critical: !a.eligible }, ...a.anomalies.map((x) => ({ Supplier: a.name, Risk: a.risk, Observation: x.message, Critical: x.critical }))]));
@@ -85,7 +87,7 @@ export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intel
   const finish = () => { for (let p = 1; p <= totalPages(); p++) { pdf.setPage(p); pdf.setFontSize(7); pdf.setTextColor(...ink); pdf.text("Stephany Alves · SIGNAL & STRUCTURE · Synthetic data", 14, 205); } };
   const band = (title: string) => { pdf.setFillColor(...forest); pdf.rect(0, 0, 297, 16, "F"); pdf.setTextColor(...ivory); pdf.setFontSize(10); pdf.text("AeroQuote Compass", 14, 10.5); pdf.setTextColor(...ink); pdf.setFontSize(16); pdf.text(ascii(title), 14, 28); };
   const table = (title: string, head: string[], rows: string[][]) => { band(title); autoTable(pdf, { startY: 35, head: [head.map(ascii)], body: rows.map((r) => r.map(ascii)), styles: { fontSize: 8, textColor: ink, lineColor: line, lineWidth: 0.1 }, headStyles: { fillColor: sunken, textColor: ink }, theme: "grid" }); };
-  table("RFQ Information", ["Field", "Value"], Object.entries(ref).map(([k, v]) => [REF_LABELS[k] ?? k, refValue(k, v)]));
+  table("RFQ Information", ["Field", "Value"], Object.entries(ref).map(([k, v]) => [REF_LABELS[k] ?? "RFQ information", refValue(k, v)]));
   pdf.addPage(); table("Supplier Comparison | USD", ["Supplier", "Original price", "Annual material", "Annual landed", "Overall score", "Risk"], list.map((a) => [a.name, `${a.baseline.quote.currency} ${value(a.baseline.quote.unit_price)}`, usd(a.material), `${usd(a.annualLanded)}${a.estimated ? " (Estimated)" : ""}${a.incomplete ? " (Incomplete)" : ""}`, score1(a.score), a.risk]));
   pdf.addPage(); band("Annual Landed Cost by Supplier | USD");
   const max = Math.max(...list.map((a) => a.annualLanded ?? 0), 1);
@@ -102,4 +104,30 @@ export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intel
   for (const { a, b } of breakdowns) { pdf.addPage(); table(`${a.name} | Landed Cost Breakdown`, ["Component", "Original value", "FX to USD", "USD", "Source", "Treatment / note", "Formula"], b.validationErrors.length ? b.validationErrors.map((e) => ["Calculation blocked", e, "", "", "", "", ""]) : b.components.map((c) => [c.label, `${c.currencyOriginal} ${usd(c.amountOriginal)}`, c.fxRate.toFixed(6), usd(c.amountUsd), SOURCE_LABELS[c.source], c.note, c.formula])); }
   finish();
   pdf.save(`${filename}-analysis.pdf`);
+}
+
+/** Auditable decision summary: CSV (stacked sections), Excel (one sheet per section) or PDF (one table per section). */
+export async function exportDecisionSummary(format: "csv" | "xlsx" | "pdf", sections: import("./decision-summary").SummarySection[], ref: RfqReference) {
+  const filename = `${(ref.rfqNumber || "RFQ").replace(/[^a-zA-Z0-9_-]/g, "_")}-decision-summary`;
+  if (format === "csv") {
+    const { summaryCsv } = await import("./decision-summary");
+    const url = URL.createObjectURL(new Blob(["\uFEFF", summaryCsv(sections)], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = `${filename}.csv`; link.click(); URL.revokeObjectURL(url); return;
+  }
+  if (format === "xlsx") {
+    const X = await import("xlsx"); const wb = X.utils.book_new();
+    for (const s of sections) X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet([s.columns, ...s.rows]), s.sheet.slice(0, 31));
+    X.writeFile(wb, `${filename}.xlsx`); return;
+  }
+  const { jsPDF } = await import("jspdf"); const { default: autoTable } = await import("jspdf-autotable");
+  const pdf = new jsPDF({ orientation: "landscape" });
+  const ascii2 = (s: string) => ascii(s).replaceAll("→", "->").replaceAll("·", "|").replace(/[^\x20-\x7E\u00A0-\u00FF]/g, "");
+  sections.forEach((s, i) => {
+    if (i) pdf.addPage();
+    pdf.setFillColor(11, 48, 43); pdf.rect(0, 0, 297, 16, "F"); pdf.setTextColor(245, 244, 236); pdf.setFontSize(10); pdf.text("AeroQuote Compass | Auditable decision summary", 14, 10.5);
+    pdf.setTextColor(16, 23, 20); pdf.setFontSize(13); pdf.text(ascii2(s.title), 14, 27);
+    autoTable(pdf, { startY: 32, head: [s.columns.map(ascii2)], body: s.rows.map((r) => r.map(ascii2)), styles: { fontSize: 7, textColor: [16, 23, 20], lineColor: [214, 216, 210], lineWidth: 0.1 }, headStyles: { fillColor: [232, 233, 229], textColor: [16, 23, 20] }, margin: { bottom: 14 } });
+  });
+  for (let p = 1; p <= pdf.getNumberOfPages(); p++) { pdf.setPage(p); pdf.setFontSize(7); pdf.text("Stephany Alves | SIGNAL & STRUCTURE | Synthetic data", 14, 205); }
+  pdf.save(`${filename}.pdf`);
 }
