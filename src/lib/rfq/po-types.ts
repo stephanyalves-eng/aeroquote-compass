@@ -24,4 +24,4 @@ export interface PoCheckItem {
 export type PoStatus = "Awaiting PO" | "PO awaiting check" | "PO with discrepancies" | "PO blocked" | "PO checked and released";
 export interface PoCheckResult { items: PoCheckItem[]; tolerances: PoTolerances; validationErrors: string[]; financialTotalUsd: number | null }
 export interface PoResolution { itemId: string; fingerprint: string; action: "accepted" | "correction_requested"; justification: string; timestamp: string; actor: string }
-export interface PoState { po?: PurchaseOrder; result?: PoCheckResult; tolerances: PoTolerances; resolutions: PoResolution[]; released: boolean }
+export interface PoState { po?: PurchaseOrder | undefined; result?: PoCheckResult | undefined; tolerances: PoTolerances; resolutions: PoResolution[]; released: boolean }

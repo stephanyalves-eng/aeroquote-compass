@@ -22,8 +22,7 @@ export interface LandedCostBreakdown {
   inputs: { unitPrice: number | null; annualQuantity: number; currency: Currency | null; fxRate: number | null; unitPriceUsd: number | null; source: CostComponent["source"] };
   formula: string;
 }
-export interface PoCheck { documentId: string; field: ReviewField; expectedValue: unknown; actualValue: unknown }
-export interface PoCheckResult { checks: PoCheck[]; status: "pending" | "review" | "blocked" | "passed" }
+export type { PoCheckItem as PoCheck, PoCheckResult } from "./po-types";
 export interface AuditEvent {
   id: string; timestamp: string; actor: string; action: string; documentId?: string; field?: ReviewField;
   previousValue?: unknown; newValue?: unknown; justification?: string; details?: Record<string, unknown>;

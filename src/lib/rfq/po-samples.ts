@@ -8,8 +8,7 @@ export function createPoFromApprovedDecision(c:ApprovedPoContext):PurchaseOrder 
 export function demoPurchaseOrder(c:ApprovedPoContext,scenario:PoScenario):PurchaseOrder {
   const po=createPoFromApprovedDecision(c);
   if(scenario==="Within tolerance") {
-    // 40 cents USD converted into the PO currency; freight updated by 1% only when actually quoted.
-    if(po.freight!=null) { const change=po.freight*0.01; po.freight+=change; po.totalValue=(po.totalValue??0)+change; }
+    // USD 0.40 rounding; quoted native charges unchanged, no logistics split invented.
     po.totalValue=(po.totalValue??0)+0.4/(c.breakdown.inputs.fxRate??1);
     if(po.currency!=="USD") po.usdBrl=c.reference.usdBrl*1.01;
   }

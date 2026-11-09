@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Section, Status, Money } from "./primitives";
 import type { AuditEvent } from "@/lib/rfq/review-types";
 import type { ApprovedDecision } from "@/lib/rfq/recommendation";
-export interface Snapshot { approvedDecision?: ApprovedDecision; auditEvents?: AuditEvent[]; reference: RfqReference; documents: QuoteDocument[]; weights: Weights; summary?: { supplier: string | null; landed: number | null; savings: number | null } }
+import type { PoState } from "@/lib/rfq/po-types";
+export interface Snapshot { poState?: PoState; approvedDecision?: ApprovedDecision; auditEvents?: AuditEvent[]; reference: RfqReference; documents: QuoteDocument[]; weights: Weights; summary?: { supplier: string | null; landed: number | null; savings: number | null } }
 export function History({ onOpen }: { onOpen: (id: string, snapshot: Snapshot, status: RfqStatus) => void }) {
   const load = useServerFn(listHistory); const [rows, setRows] = useState<Awaited<ReturnType<typeof load>>>([]); const [signedIn, setSignedIn] = useState(false); const [error, setError] = useState(""); const [loading, setLoading] = useState(true);
   useEffect(() => { let active = true; supabase.auth.getSession().then(async ({ data }) => { if (!active) return; setSignedIn(Boolean(data.session)); if (data.session) { try { const result = await load(); if (active) setRows(result); } catch { if (active) setError("Could not load RFQ history."); } } if (active) setLoading(false); }); return () => { active = false; }; }, [load]);
