@@ -9,6 +9,8 @@ import {
   currentSupplierConfirmation,
   recordSupplierConfirmation,
   supplierConfirmationAudit,
+  shouldMeasureConfirmedRecommendation,
+  RFQ_CONFIRMED_RECOMMENDATION_EVENT,
 } from "./po-confirmation";
 import { buildPoDocument } from "./po-document";
 import { describeAudit } from "./audit-describe";
@@ -43,6 +45,24 @@ function fixture() {
   return { draft, issued, context };
 }
 describe("Supplier confirmation", () => {
+  it("weekly metric requires both a recommendation and supplier confirmation", () => {
+    const { issued } = fixture();
+    expect(shouldMeasureConfirmedRecommendation(issued, true, [])).toBe(false);
+    const confirmed = recordSupplierConfirmation(issued, input, time, actor);
+    expect(shouldMeasureConfirmedRecommendation(confirmed, false, [])).toBe(false);
+    expect(shouldMeasureConfirmedRecommendation(confirmed, true, [])).toBe(true);
+  });
+  it("weekly metric does not count updated dates, amendments or reopened RFQs twice", () => {
+    const first = recordSupplierConfirmation(fixture().issued, input, time, actor);
+    const audit = [{ id: "metric-1", action: RFQ_CONFIRMED_RECOMMENDATION_EVENT, timestamp: time, actor }];
+    const updated = recordSupplierConfirmation(first, { ...input, expectedDelivery: "2027-03-20" }, time, actor);
+    expect(shouldMeasureConfirmedRecommendation(updated, true, audit)).toBe(false);
+    expect(shouldMeasureConfirmedRecommendation(JSON.parse(JSON.stringify(updated)), true, JSON.parse(JSON.stringify(audit)))).toBe(false);
+    const draft = transitionPo(first, "Amend", time, actor, true);
+    const amended = transitionPo(transitionPo(draft, "Generate", time, actor, true), "Issue", time, actor, true);
+    expect(shouldMeasureConfirmedRecommendation(recordSupplierConfirmation(amended, input, time, actor), true, audit)).toBe(false);
+    expect(shouldMeasureConfirmedRecommendation(updated, true, [])).toBe(true);
+  });
   it("records acknowledgement and expected delivery without modifying the PO or release", () => {
     const { issued } = fixture();
     const next = recordSupplierConfirmation(issued, input, time, actor);
