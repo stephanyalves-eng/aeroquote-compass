@@ -62,6 +62,6 @@ export function statusTotals(rows: readonly ExplorerRow[]) {
 export function chartFocus(list: Intelligence[], recommendedId: string | null, selected: string[], showAll: boolean, limit = 6): Intelligence[] {
   if (showAll || list.length <= limit) return list;
   if (selected.length) return list.filter((a) => selected.includes(a.document.id) || a.document.id === recommendedId);
-  const keep = new Set([recommendedId, ...list.filter((a) => a.eligible).map((a) => a.document.id), ...list.map((a) => a.document.id)].filter(Boolean).slice(0, limit) as string[]);
+  const keep = new Set([...new Set([recommendedId, ...list.filter((a) => a.eligible).map((a) => a.document.id), ...list.map((a) => a.document.id)].filter((x): x is string => Boolean(x)))].slice(0, limit));
   return list.filter((a) => keep.has(a.document.id));
 }
