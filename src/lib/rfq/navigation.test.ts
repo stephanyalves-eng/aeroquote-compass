@@ -28,7 +28,7 @@ describe("bulk confirm preview", () => {
   it("never includes critical fields", () => {
     const docs = extendedSampleDocuments(); const plan = bulkConfirmPlan(docs, reference);
     for (const t of plan.targets) for (const f of t.fields) expect(["supplier_name", "part_number", "revision", "currency", "unit_price", "certifications"]).not.toContain(f);
-    expect(plan.excluded).toEqual(expect.arrayContaining(["Supplier"]) ?? []);
+    expect(plan.excluded).toContain("Supplier");
     expect(plan.fields).toBe(plan.targets.reduce((n, t) => n + t.fields.length, 0));
     expect(plan.criticalPending).toBeGreaterThan(0);
   });
