@@ -55,6 +55,13 @@ export function simulateScenario(documents: QuoteDocument[], reference: RfqRefer
   }
   const rows = list.map((supplier) => {
     const breakdown = buildLandedCostBreakdown(supplier, { reference: ref });
+    if (settings.nreYears > 1) for (const component of breakdown.components) {
+      if (component.key.startsWith("one-time-") && isNre(component.label)) {
+        component.treatment = "amortized";
+        component.note = `Simulation annual allocation over ${settings.nreYears} years; not year-one cash cost.`;
+        component.formula = `Original NRE × FX ÷ ${settings.nreYears} years`;
+      }
+    }
     errors.push(...breakdown.validationErrors.map((e) => `${supplier.name}: ${e}`));
     const before = baseline.find((a) => a.document.id === supplier.document.id);
     return { supplier, breakdown, originalCost: before?.annualLanded ?? null, difference: supplier.annualLanded == null || before?.annualLanded == null ? null : supplier.annualLanded - before.annualLanded, originalScore: before?.score ?? null };

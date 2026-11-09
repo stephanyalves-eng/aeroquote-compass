@@ -5,10 +5,18 @@ import { poSummary } from "./po-check";
 import type { PoState } from "./po-types";
 import type { RfqReference } from "./types";
 import type { FailureInvestigation } from "./investigation";
-import { unresolvedRevisionAlerts, type RevisionAlert, type ImpactAssessment } from "./revisions";
+import { unresolvedRevisionAlerts, detectRevisionChanges, configurationGate, gateBlocked, type DocumentRevision, type ConfigurationSnapshot, type RevisionAlert, type ImpactAssessment } from "./revisions";
 
 export interface OperationInput { reference: RfqReference; documents: QuoteDocument[]; poState?: PoState | undefined; configurationBlocked?: boolean | undefined; alerts?: RevisionAlert[] | undefined; assessments?: ImpactAssessment[] | undefined; investigations?: FailureInvestigation[] | undefined; approved?: boolean | undefined }
 export interface OperationItem { id: string; label: string; count: number; tone: "neutral" | "warning" | "error" | "success"; details: string[]; action: string; step: number }
+export function savedOperationalSummary(snapshot: { reference: RfqReference; documents: QuoteDocument[]; poState?: PoState | undefined; approvedDecision?: { supplierId: string } | undefined; configuration?: { registry: DocumentRevision[]; snapshots: ConfigurationSnapshot[]; assessments: ImpactAssessment[]; investigations?: FailureInvestigation[] | undefined } | undefined }, today: string) {
+  const config = snapshot.configuration;
+  const at = [snapshot.reference.demoAnalysis ? snapshot.reference.today : today, ...(config?.registry ?? []).map((r) => r.effectiveFrom)].sort().at(-1) ?? today;
+  const alerts = detectRevisionChanges(config?.registry ?? [], config?.snapshots ?? [], at);
+  const approvedQuote = snapshot.documents.find((d) => d.id === snapshot.approvedDecision?.supplierId)?.reviewed;
+  const blocked = Boolean(config && snapshot.poState?.po && gateBlocked(configurationGate({ registry: config.registry, at, poRevision: snapshot.poState.po.revision, quoteRevision: approvedQuote?.revision, alerts, assessments: config.assessments })));
+  return operationalSummary({ reference: { ...snapshot.reference, today: snapshot.reference.demoAnalysis ? snapshot.reference.today : today }, documents: snapshot.documents, poState: snapshot.poState, configurationBlocked: blocked, alerts, assessments: config?.assessments, investigations: config?.investigations, approved: Boolean(snapshot.approvedDecision) });
+}
 /** Current analysis only; saved RFQs are summarized independently under owner-only History. */
 export function operationalSummary(input: OperationInput): OperationItem[] {
   const { reference, documents } = input;

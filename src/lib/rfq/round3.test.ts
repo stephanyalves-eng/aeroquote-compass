@@ -4,7 +4,7 @@ import { sampleDocuments, sampleReference } from "./phase2-fixtures";
 import { DEFAULT_WEIGHTS, compareDocuments, decisionInsights } from "./intelligence";
 import { revisionDiff } from "./revision-diff";
 import { createSnapshot, demoRevisionRegistry, publishRevision, detectRevisionChanges, createImpactAssessment } from "./revisions";
-import { operationalSummary } from "./operations";
+import { operationalSummary, savedOperationalSummary } from "./operations";
 import { emptyPoState, buildApprovedPoContext, loadAndCheckPo, resolvePoItem } from "./po-check";
 import { demoPurchaseOrder } from "./po-samples";
 import { createApprovedDecision } from "./recommendation";
@@ -40,6 +40,7 @@ describe("isolated scenario calculations", () => {
     const before = JSON.stringify({ sampleDocuments, sampleReference, decision });
     const result = simulateScenario(sampleDocuments, sampleReference, DEFAULT_WEIGHTS, { ...settings, nreYears: 4 });
     expect(result.rows.find((r) => r.supplier.name.startsWith("Meridian"))?.supplier.annualLanded).toBe(231800);
+    expect(result.rows.find((r) => r.supplier.name.startsWith("Meridian"))?.breakdown.components.find((c) => c.label === "NRE")?.treatment).toBe("amortized");
     expect(result.rows.find((r) => r.supplier.name.startsWith("Polar"))?.supplier.oneTime).toBe(6500);
     expect(result.rows.find((r) => r.supplier.name.startsWith("Helix"))?.supplier.oneTime).toBe(baseline.find((a) => a.name.startsWith("Helix"))?.oneTime);
     expect(JSON.stringify({ sampleDocuments, sampleReference, decision })).toBe(before);
@@ -90,6 +91,12 @@ describe("recorded revision diff", () => {
   });
 });
 describe("operational evidence summaries", () => {
+  it("saved RFQ summaries retain new-revision blocks even when the demo analysis date is earlier", () => {
+    const poState = loadAndCheckPo(demoPurchaseOrder(context, "Correct PO"), context, emptyPoState().tolerances);
+    const items = savedOperationalSummary({ reference: { ...sampleReference, demoAnalysis: true }, documents: sampleDocuments, poState, approvedDecision: decision, configuration: { registry: nextRegistry, snapshots: [snapshot], assessments: [] } }, "2026-11-09");
+    expect(items.find((i) => i.id === "revisions")?.count).toBe(1);
+    expect(items.find((i) => i.id === "po")?.count).toBe(1);
+  });
   it("counts only pending included quotes and expiring (not expired) quotations", () => {
     const items = operationalSummary({ reference: sampleReference, documents: sampleDocuments });
     expect(items.find((i) => i.id === "attention")?.count).toBe(0);
