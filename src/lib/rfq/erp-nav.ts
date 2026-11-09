@@ -17,7 +17,7 @@ export const ERP_NAV: ErpNavItem[] = [
   { id: "comparison", label: "Supplier Comparison", group: "Decide", step: 3 },
   { id: "decisions", label: "Decisions", group: "Decide", step: 4 },
   { id: "po", label: "Purchase Orders", group: "Decide", step: 5 },
-  { id: "release", label: "Release Control", group: "Decide", step: 5 },
+  { id: "release", label: "Release Control", group: "Decide", step: 9 },
   { id: "configuration", label: "Configuration", group: "Trace", step: 6 },
   { id: "audit", label: "Audit Trail", group: "Trace", step: 7 },
   { id: "investigations", label: "Investigations", group: "Trace", step: 8 },
@@ -38,6 +38,7 @@ export interface ErpProcessInput {
   comparisonComputed: boolean;
   decisionApproved: boolean;
   hasPo: boolean;
+  poIssued?: boolean;
   poChecked: boolean;
   poStatus: string;
   configurationBlocked: boolean;
@@ -59,7 +60,7 @@ export function erpProcessSteps(state: ErpProcessInput): ErpProcessStep[] {
     );
   const compared = reviewed && state.comparisonComputed;
   const approved = compared && state.decisionApproved;
-  const hasPo = approved && state.hasPo;
+  const hasPo = approved && state.hasPo && (state.poIssued ?? true);
   const checked = hasPo && state.poChecked;
   const poBlocked = checked && state.poStatus === "PO blocked";
   const poVerified =
@@ -116,7 +117,7 @@ export function erpProcessSteps(state: ErpProcessInput): ErpProcessStep[] {
       active: approved,
       blocked: false,
       attention: false,
-      detail: "Purchase order created",
+      detail: "Purchase order issued; draft creation alone does not complete this stage",
     },
     {
       label: "PO verified",

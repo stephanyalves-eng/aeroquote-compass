@@ -2,6 +2,7 @@ import type { QuoteDocument } from "./workflow";
 import { quotationConfirmationErrors } from "./review-issues";
 import { daysBetween } from "./rules";
 import { poSummary } from "./po-check";
+import { lifecycleStatus } from "./po-lifecycle";
 import type { PoState } from "./po-types";
 import type { RfqReference } from "./types";
 import type { FailureInvestigation } from "./investigation";
@@ -167,6 +168,33 @@ export function requiresAttention(input: OperationInput): AttentionItem[] {
       nextAction: "Record decision",
       step: 4,
     });
+  if (
+    input.poState?.lifecycle &&
+    !input.poState.released &&
+    input.poState.lifecycle.phase !== "Cancelled" &&
+    !blockedPo
+  ) {
+    const status = lifecycleStatus(input.poState, Boolean(input.configurationBlocked));
+    items.push({
+      id: "po-lifecycle",
+      process: "Purchase Order",
+      reason: `${input.poState.po?.poNumber ?? "PO"} · ${status}.`,
+      owner: input.poState.lifecycle.actor,
+      due: reference.requiredDeliveryDate ?? null,
+      severity: status === "Requires correction" ? "High" : "Medium",
+      nextAction:
+        status === "Draft"
+          ? "Generate PO"
+          : status === "Generated"
+            ? "Issue PO"
+            : status === "Awaiting release"
+              ? "Release purchase"
+              : status === "Requires correction"
+                ? "Review discrepancies"
+                : "Verify PO",
+      step: 5,
+    });
+  }
   for (const { alert } of revisions)
     items.push({
       id: `revision-${alert.key}`,

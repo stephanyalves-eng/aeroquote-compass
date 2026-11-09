@@ -70,6 +70,17 @@ import {
 } from "@/lib/rfq/recommendation";
 import { buildLandedCostBreakdown } from "@/lib/rfq/landed-cost";
 import { PoPanel } from "@/components/rfq/po-panel";
+import { PoWorkspace } from "@/components/rfq/po-workspace";
+import {
+  startPoDraft,
+  savePoDraft,
+  transitionPo,
+  lifecycleStatus,
+  lifecycleAudit,
+  draftEditAudit,
+  poVerificationAllowed,
+  type PoLifecycleAction,
+} from "@/lib/rfq/po-lifecycle";
 import {
   buildApprovedPoContext,
   emptyPoState,
@@ -164,6 +175,7 @@ function Index() {
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [approvedDecision, setApprovedDecision] = useState<ApprovedDecision>();
   const [poState, setPoState] = useState<PoState>(emptyPoState);
+  const [poDraftDirty, setPoDraftDirty] = useState(false);
   const reopening = useRef(false);
   const [registry, setRegistry] = useState(demoRevisionRegistry);
   const [snapshots, setSnapshots] = useState<ConfigurationSnapshot[]>([]);
@@ -289,10 +301,66 @@ function Index() {
       scenario === "Created from approval"
         ? createPoFromApprovedDecision(poContext)
         : demoPurchaseOrder(poContext, scenario);
+    if (scenario === "Created from approval") {
+      if (
+        poState.po &&
+        !window.confirm(
+          "Replace the current PO with a new draft? The audit and check snapshots are retained.",
+        )
+      )
+        return;
+      const next = {
+        ...startPoDraft(po, poTimestamp(), DEMO_BUYER),
+        tolerances: { ...poState.tolerances },
+        lifecycle: {
+          ...startPoDraft(po, poTimestamp(), DEMO_BUYER).lifecycle,
+          history: poState.lifecycle?.issued
+            ? [
+                ...poState.lifecycle.history,
+                {
+                  po: structuredClone(poState.lifecycle.issued),
+                  status: "Superseded" as const,
+                  revision: poState.lifecycle.revision,
+                  timestamp: poTimestamp(),
+                  actor: DEMO_BUYER,
+                },
+              ]
+            : (poState.lifecycle?.history ?? []),
+          phase: "Draft" as const,
+          revision: (poState.lifecycle?.revision ?? 0) + 1,
+          updatedAt: poTimestamp(),
+          actor: DEMO_BUYER,
+        },
+      };
+      setPoState(next);
+      record(lifecycleAudit("Draft created", poState, next));
+      return;
+    }
     const next = loadAndCheckPo(po, poContext, poState.tolerances);
+    next.lifecycle = {
+      phase: "Awaiting release",
+      revision: (poState.lifecycle?.revision ?? 0) + 1,
+      issued: structuredClone(po),
+      updatedAt: poTimestamp(),
+      actor: DEMO_BUYER,
+      history: [
+        ...(poState.lifecycle?.history ?? []),
+        ...(poState.po
+          ? [
+              {
+                po: structuredClone(poState.lifecycle?.issued ?? poState.po),
+                status: "Superseded" as const,
+                revision: poState.lifecycle?.revision ?? 1,
+                timestamp: poTimestamp(),
+                actor: DEMO_BUYER,
+              },
+            ]
+          : []),
+      ],
+    };
     setPoState(next);
     record({
-      action: scenario === "Created from approval" ? "PO created" : "PO loaded",
+      action: "PO loaded",
       newValue: po,
       details: { source: scenario },
     });
@@ -324,7 +392,7 @@ function Index() {
     });
   };
   const checkPo = () => {
-    if (!poContext || !poState.po) return;
+    if (!poContext || !poState.po || !poVerificationAllowed(poState)) return;
     const result = checkPurchaseOrder(poState.po, poContext, poState.tolerances);
     setPoState({ ...poState, result, released: false });
     record({
@@ -381,7 +449,16 @@ function Index() {
       return;
     }
     try {
-      const next = releasePurchase(poState, Boolean(poContext));
+      const next = poState.lifecycle
+        ? transitionPo(
+            poState,
+            "Release",
+            poTimestamp(),
+            DEMO_BUYER,
+            Boolean(poContext),
+            gateBlocked(gate),
+          )
+        : releasePurchase(poState, Boolean(poContext));
       setPoState(next);
       record({
         action: "PO released",
@@ -389,6 +466,22 @@ function Index() {
       });
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Purchase cannot be released.");
+    }
+  };
+  const changePoLifecycle = (action: PoLifecycleAction) => {
+    try {
+      const next = transitionPo(
+        poState,
+        action,
+        poTimestamp(),
+        DEMO_BUYER,
+        Boolean(poContext),
+        gateBlocked(gate),
+      );
+      setPoState(next);
+      record(lifecycleAudit(action, poState, next));
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not update the purchase order.");
     }
   };
   const recordDecision = (id: string, justification: string) => {
@@ -1021,6 +1114,11 @@ function Index() {
         comparisonComputed: results.length > 0,
         decisionApproved: Boolean(approvedDecision),
         hasPo: Boolean(poState.po),
+        poIssued: Boolean(
+          poState.po &&
+          (!poState.lifecycle ||
+            (poState.lifecycle.issued && poState.lifecycle.phase !== "Cancelled")),
+        ),
         poChecked: Boolean(poState.result),
         poStatus,
         configurationBlocked: gateBlocked(gate),
@@ -1044,6 +1142,8 @@ function Index() {
               : "Record a decision first."
             : null;
   const go = (i: number) => {
+    if (poDraftDirty && !window.confirm("Discard unsaved PO draft changes?")) return;
+    setPoDraftDirty(false);
     setStep(i);
     setNotice("");
     setHistory(false);
@@ -1100,7 +1200,12 @@ function Index() {
             ? "Unsaved changes"
             : "Not saved yet";
   const plan = bulkTarget ? bulkConfirmPlan(documents, reference, bulkTarget.id) : null;
-  const viewLabel = step === DASHBOARD_STEP ? "Dashboard" : (steps[step] ?? "Dashboard");
+  const viewLabel =
+    step === 9
+      ? "Release Control"
+      : step === DASHBOARD_STEP
+        ? "Dashboard"
+        : (steps[step] ?? "Dashboard");
   const breadcrumb = history
     ? ["RFQ History"]
     : step === DASHBOARD_STEP
@@ -1262,6 +1367,11 @@ function Index() {
             ) : (
               <>
                 <RecordHeader reference={reference} status={status} saveLabel={saveLabel} />
+                {poState.po && (
+                  <p className="text-sm text-text-secondary">
+                    PO {poState.po.poNumber} · {lifecycleStatus(poState, gateBlocked(gate))}
+                  </p>
+                )}
                 <ProcessStepper steps={processSteps} />
                 <div className="min-w-0">
                   <p className="hidden text-xs text-text-secondary md:block">
@@ -1384,7 +1494,7 @@ function Index() {
                     }}
                   />
                 )}
-                {step === 5 && poContext && (
+                {(step === 5 || step === 9) && poContext && (
                   <RevisionStrip
                     registry={registry}
                     snapshots={snapshots}
@@ -1392,7 +1502,7 @@ function Index() {
                     blocked={gateBlocked(gate)}
                   />
                 )}
-                {step === 5 && poContext && poState.po && (
+                {(step === 5 || step === 9) && poContext && poState.po && (
                   <GatePanel
                     items={gate}
                     statement={verificationStatement(registry, configAt, configAt)}
@@ -1418,7 +1528,23 @@ function Index() {
                     onConfirm={confirmInvestigation}
                   />
                 )}
-                {step === 5 && (
+                {(step === 5 || step === 9) && (
+                  <PoWorkspace
+                    state={poState}
+                    context={poContext}
+                    blocked={gateBlocked(gate)}
+                    onTransition={changePoLifecycle}
+                    onError={setNotice}
+                    draftDirty={poDraftDirty}
+                    onExport={() =>
+                      record({
+                        action: "PO document exported",
+                        details: { poNumber: poState.po?.poNumber, source: "PDF" },
+                      })
+                    }
+                  />
+                )}
+                {(step === 5 || step === 9) && (
                   <PoPanel
                     configurationBlocked={gateBlocked(gate)}
                     context={poContext}
@@ -1427,24 +1553,29 @@ function Index() {
                     onCheck={checkPo}
                     onResolve={resolvePo}
                     onRelease={releasePo}
+                    onDraftDirty={setPoDraftDirty}
                     onEdit={(po) => {
-                      setPoState({
-                        ...poState,
-                        po,
-                        resolutions: [],
-                        released: false,
-                        result: undefined,
-                      });
-                      record({
-                        action: "PO edited",
-                        newValue: po,
-                        details: { status: "PO awaiting check" },
-                      });
+                      try {
+                        const next = savePoDraft(poState, po, poTimestamp(), DEMO_BUYER);
+                        setPoState(next);
+                        draftEditAudit(poState.po, po).forEach(record);
+                        record(lifecycleAudit("Draft saved", poState, next));
+                      } catch (e) {
+                        setNotice(e instanceof Error ? e.message : "Could not save the PO draft.");
+                      }
                     }}
                     onTolerances={(tolerances) => {
                       setPoState({
                         ...poState,
                         tolerances,
+                        ...(poState.lifecycle?.issued
+                          ? {
+                              lifecycle: {
+                                ...poState.lifecycle,
+                                phase: "Awaiting verification" as const,
+                              },
+                            }
+                          : {}),
                         result: undefined,
                         resolutions: [],
                         released: false,
