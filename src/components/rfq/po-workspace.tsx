@@ -460,7 +460,7 @@ export function PoWorkspace({
           )}
           {state.lifecycle &&
             ["Issued", "Awaiting verification"].includes(phase ?? "") &&
-            status === "Awaiting release" && (
+            status === "Verified" && (
               <Button onClick={() => act("Confirm verification")}>
                 <Check />
                 Confirm verification

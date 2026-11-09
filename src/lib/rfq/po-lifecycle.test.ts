@@ -14,6 +14,7 @@ import {
   draftEditAudit,
   lifecycleAudit,
   lifecycleStatus,
+  poLifecycleSteps,
   poEditingAllowed,
   poReleaseAllowed,
   savePoDraft,
@@ -180,7 +181,7 @@ describe("PO lifecycle safeguards", () => {
         time,
       );
     const accepted = { ...state, po, result, resolutions };
-    expect(lifecycleStatus(accepted)).toBe("Awaiting release");
+    expect(lifecycleStatus(accepted)).toBe("Verified");
     expect(poReleaseAllowed(accepted, true, false)).toBe(false);
   });
   it("preserves legacy PO check/release compatibility and old JSON snapshots", () => {
@@ -230,6 +231,18 @@ describe("PO lifecycle safeguards", () => {
     });
     expect(steps[5]?.status).toBe("In progress");
     expect(steps[6]?.status).toBe("Not started");
+  });
+  it("PO stage statuses derive from evidence and never skip prerequisites", () => {
+    const { context, draft } = fixture();
+    expect(poLifecycleSteps(draft, false).map((s) => s.status)).toEqual(["Completed", "In progress", "Not started", "Not started", "Not started", "Not started", "Not started", "Not started"]);
+    const { state } = issued();
+    const checked = { ...state, result: checkPurchaseOrder(state.po ?? context.expected, context) };
+    expect(poLifecycleSteps(checked, true)[5]?.status).toBe("Blocked");
+    expect(poLifecycleSteps(checked, true)[6]?.status).toBe("Not started");
+    const verified = transitionPo(checked, "Confirm verification", time, actor, true);
+    const ready = transitionPo(verified, "Prepare release", time, actor, true);
+    const released = transitionPo(ready, "Release", time, actor, true);
+    expect(poLifecycleSteps(released, false).every((s) => s.status === "Completed")).toBe(true);
   });
 });
 describe("PO document and list evidence", () => {
