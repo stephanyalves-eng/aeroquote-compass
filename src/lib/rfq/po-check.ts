@@ -76,12 +76,12 @@ export function checkPurchaseOrder(po: PurchaseOrder, c: ApprovedPoContext, tole
     const ok = match ?? normalize(approved) === normalize(value);
     push(String(key), label, approved, value, source, absent(approved) && absent(value) && !mandatory ? "not_applicable" : !absent(value) && ok ? "confirmed" : mandatory ? "blocker" : "requires_review", ok && !absent(value) ? "Matches approved reference." : "Missing or different from the approved reference.");
   };
-  const num = (key: keyof PurchaseOrder, label: string, source: PoCheckItem["referenceSource"], absolute: number, percent: number, mandatory = false, multiplier = 1) => {
+  const num = (key: keyof PurchaseOrder, label: string, source: PoCheckItem["referenceSource"], absolute: number, percent: number, mandatory = false, multiplier: number | null = 1) => {
     const a = e[key], v = po[key];
     if (absent(a) && absent(v)) { push(String(key),label,a,v,source,mandatory ? "blocker" : "not_applicable","No approved charge stated."); return; }
     if (!validNum(a) || !validNum(v)) { push(String(key),label,a,v,source,mandatory ? "blocker" : "requires_review","Missing, invalid, or unapproved amount."); return; }
     const allowance = Math.max(absolute, a * percent / 100), delta = Math.abs(v-a), within = delta <= allowance + 1e-8;
-    push(String(key),label,a,v,source,within ? "confirmed" : mandatory ? "blocker" : "requires_review", delta < 1e-8 ? "Matches approved reference." : within ? `Within tolerance (±${percent ? `${percent}%` : absolute}): allowance ${allowance.toFixed(4)}.` : `Beyond tolerance (±${percent ? `${percent}%` : absolute}).`, usd((v-a)*multiplier));
+    push(String(key),label,a,v,source,within ? "confirmed" : mandatory ? "blocker" : "requires_review", delta < 1e-8 ? "Matches approved reference." : within ? `Within tolerance (±${percent ? `${percent}%` : absolute}): allowance ${allowance.toFixed(4)}.` : `Beyond tolerance (±${percent ? `${percent}%` : absolute}).`, multiplier == null ? null : usd((v-a)*multiplier));
   };
   text("supplier","Supplier","Approved decision",true, normalize(normalizeSupplierName(po.supplier).name) === normalize(normalizeSupplierName(e.supplier).name));
   text("partNumber","Part number","RFQ",true); text("revision","Revision","RFQ",true); text("currency","Currency","Reviewed quotation",true);
@@ -92,12 +92,12 @@ export function checkPurchaseOrder(po: PurchaseOrder, c: ApprovedPoContext, tole
   num("totalValue","Total PO value","Landed-cost calculation",tolerances.roundingUsd/approvedRate,0,true);
   for (const [key,label] of [["freight","Freight"],["insurance","Insurance"],["logisticsEstimate","Combined logistics estimate (system assumption)"]] as const) num(key,label,"Landed-cost calculation",0,tolerances.logisticsPercent);
   for (const [key,label] of [["nre","NRE"],["tooling","Tooling"],["inspectionFai","Inspection / FAI"],["taxesAndFees","Taxes and fees"],["otherCosts","Other costs"]] as const) num(key,label,"Landed-cost calculation",tolerances.roundingUsd/approvedRate,0);
-  num("paymentTermsDays","Payment terms","Reviewed quotation",0,0);
+  num("paymentTermsDays","Payment terms","Reviewed quotation",0,0,false,null);
   if (po.deliveryDate) {
     const deadline = c.reference.requiredDeliveryDate;
     push("deliveryDate","Delivery date",deadline || "Required date not specified",po.deliveryDate,"RFQ",!validDate(po.deliveryDate) ? "requires_review" : !deadline ? "requires_review" : daysBetween(deadline,po.deliveryDate) <= tolerances.leadTimeDays ? "confirmed" : "requires_review", deadline ? `Required delivery date ${deadline}; allowance ±${tolerances.leadTimeDays} days.` : "No approved delivery deadline is available.");
   } else {
-    num("leadTimeDays","Lead time","Reviewed quotation",tolerances.leadTimeDays,0);
+    num("leadTimeDays","Lead time","Reviewed quotation",tolerances.leadTimeDays,0,false,null);
     if (c.reference.requiredDeliveryDate) push("deliveryDeadline","Lead time vs required delivery date",c.reference.requiredDeliveryDate,po.leadTimeDays,"RFQ",validDate(po.issueDate) && validNum(po.leadTimeDays) && daysBetween(po.issueDate,c.reference.requiredDeliveryDate)+tolerances.leadTimeDays >= po.leadTimeDays ? "confirmed" : "requires_review", `Delivery must fit the required date ${c.reference.requiredDeliveryDate}.`);
   }
   for (const [key,label] of [["billingAddress","Billing address"],["poNumber","PO number"],["buyer","Buyer"]] as const) push(key,label,"Required",po[key],"RFQ",String(po[key]).trim() ? "confirmed" : "requires_review","Required PO administration field.");
