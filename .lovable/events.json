@@ -55,6 +55,26 @@
         }
       }
     },
+    "project.po_released": {
+      "event_schema_version": 1,
+      "description": "A PO is successfully released after the existing procurement gates pass.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "synthetic"
+        ],
+        "properties": {
+          "synthetic": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
     "project.po_validated": {
       "event_schema_version": 1,
       "description": "A PO check completes, including explicit checks and pre-checked demo loads. Valid means no validation errors or critical blockers; review items may remain.",
