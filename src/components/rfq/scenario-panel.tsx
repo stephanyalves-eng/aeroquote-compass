@@ -1,0 +1,232 @@
+import { useMemo, useState } from "react";
+import { RotateCcw, FlaskConical } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { defaultScenario, simulateScenario, type ScenarioSettings } from "@/lib/rfq/scenarios";
+import { CRITERIA, type Weights } from "@/lib/rfq/intelligence";
+import type { QuoteDocument } from "@/lib/rfq/workflow";
+import type { RfqReference } from "@/lib/rfq/types";
+import { formatCurrency, formatNumber } from "@/lib/format";
+import { Section, Field, control } from "./primitives";
+
+export function ScenarioPanel({
+  documents,
+  reference,
+  weights,
+}: {
+  documents: QuoteDocument[];
+  reference: RfqReference;
+  weights: Weights;
+}) {
+  const [settings, setSettings] = useState(() => defaultScenario(reference, weights));
+  const result = useMemo(
+    () => simulateScenario(documents, reference, weights, settings),
+    [documents, reference, weights, settings],
+  );
+  const [all, setAll] = useState(false);
+  const patch = (key: keyof Omit<ScenarioSettings, "weights">, raw: string) =>
+    setSettings((old) => ({
+      ...old,
+      [key]: raw === "" ? (key === "freightUsd" ? null : NaN) : Number(raw),
+    }));
+  const rows = all ? result.rows : result.rows.filter((r) => r.supplier.eligible).slice(0, 4);
+  return (
+    <Section
+      title="Scenario analysis"
+      action={
+        <Button
+          variant="outline"
+          className="min-h-11"
+          onClick={() => setSettings(defaultScenario(reference, weights))}
+        >
+          <RotateCcw />
+          Reset scenario
+        </Button>
+      }
+    >
+      <p className="flex items-start gap-2 text-sm text-warning">
+        <FlaskConical className="mt-0.5 size-4 shrink-0" />
+        Simulation only — reviewed quotations, recorded decision, PO and exports remain unchanged.
+        Annualized NRE is not year-one cash cost.
+      </p>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        {[
+          ["annualVolume", "Scenario annual quantity", "1"],
+          ["usdBrl", "Scenario USD/BRL", "0.0001"],
+          ["eurBrl", "Scenario EUR/BRL", "0.0001"],
+          ["freightUsd", "Scenario annual freight per supplier (USD)", "0.01"],
+          ["nreYears", "Scenario NRE amortization (years)", "1"],
+        ].map(([key, label, step]) => (
+          <Field key={key} label={label ?? "Scenario input"}>
+            <input
+              className={control}
+              type="number"
+              min={key === "freightUsd" ? 0 : step}
+              step={step}
+              value={
+                Number.isFinite(settings[key as keyof Omit<ScenarioSettings, "weights">])
+                  ? (settings[key as keyof Omit<ScenarioSettings, "weights">] ?? "")
+                  : ""
+              }
+              onChange={(e) =>
+                patch(key as keyof Omit<ScenarioSettings, "weights">, e.target.value)
+              }
+              placeholder={key === "freightUsd" ? "Keep quoted logistics" : undefined}
+            />
+          </Field>
+        ))}
+      </div>
+      <p className="text-xs text-text-secondary">
+        Blank freight retains quoted logistics or the existing combined Incoterm estimate. An
+        override replaces freight/estimate, not separately quoted insurance. Only explicitly
+        labelled NRE is amortized; tooling and FAI remain in full.
+      </p>
+      <details>
+        <summary className="min-h-11 cursor-pointer font-medium">Scenario scoring weights</summary>
+        <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {(Object.keys(weights) as (keyof Weights)[]).map((key) => (
+            <Field key={key} label={`Scenario ${CRITERIA[key]} (%)`}>
+              <input
+                className={control}
+                type="number"
+                min="0"
+                max="100"
+                step="any"
+                value={settings.weights[key]}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    weights: {
+                      ...settings.weights,
+                      [key]: e.target.value === "" ? NaN : Number(e.target.value),
+                    },
+                  })
+                }
+              />
+            </Field>
+          ))}
+        </div>
+      </details>
+      {result.errors.length > 0 ? (
+        <ul role="alert" className="space-y-2 text-sm text-error">
+          {result.errors.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      ) : (
+        <>
+          <div aria-live="polite" className="space-y-3 border-y border-border-subtle py-4">
+            <dl className="grid gap-4 md:grid-cols-2">
+              <div>
+                <dt className="text-xs text-text-secondary">Original recommendation</dt>
+                <dd className="mt-1 font-medium">
+                  {result.original?.name ?? "No eligible supplier"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-text-secondary">Simulated recommendation</dt>
+                <dd className="mt-1 font-medium text-success">
+                  {result.recommended?.name ?? "No eligible supplier"}
+                </dd>
+              </div>
+            </dl>
+            <p className="text-sm">{result.explanation}</p>
+            <ul className="space-y-1 text-xs text-text-secondary">
+              {result.changes.length ? (
+                result.changes.map((c) => <li key={c}>{c}</li>)
+              ) : (
+                <li>Original assumptions — no scenario changes.</li>
+              )}
+            </ul>
+          </div>
+          <div className="mobile-data-table">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr>
+                  {[
+                    "Supplier",
+                    "Original annual cost",
+                    "Simulated annual cost",
+                    "Difference",
+                    "Original score",
+                    "Scenario score",
+                    "Award eligibility",
+                  ].map((label) => (
+                    <th key={label} className="p-3 text-xs font-medium text-text-secondary">
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ supplier, originalCost, difference, originalScore }) => (
+                  <tr key={supplier.document.id} className="border-b border-border-subtle">
+                    <td data-label="Supplier" className="p-3 font-medium">
+                      {supplier.name}
+                    </td>
+                    <td data-label="Original annual cost" className="p-3">
+                      {formatCurrency(originalCost)}
+                    </td>
+                    <td data-label="Simulated annual cost" className="p-3">
+                      {formatCurrency(supplier.annualLanded)}
+                    </td>
+                    <td data-label="Difference" className="p-3">
+                      {formatCurrency(difference)}
+                    </td>
+                    <td data-label="Original score" className="p-3">
+                      {formatNumber(originalScore, 1)}
+                    </td>
+                    <td data-label="Scenario score" className="p-3">
+                      {formatNumber(supplier.score, 1)}
+                    </td>
+                    <td
+                      data-label="Award eligibility"
+                      className={`p-3 ${supplier.eligible ? "text-success" : "text-error"}`}
+                    >
+                      {supplier.eligible ? "Eligible" : "Not eligible"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {result.rows.length > 4 && (
+            <Button variant="outline" className="min-h-11" onClick={() => setAll(!all)}>
+              {all ? "Show eligible highlights" : "Show all scenario suppliers"}
+            </Button>
+          )}
+          <details>
+            <summary className="min-h-11 cursor-pointer font-medium">
+              Simulated calculation details
+            </summary>
+            <div className="divide-y divide-border-subtle">
+              {rows.map(({ supplier, breakdown }) => (
+                <div key={supplier.document.id} className="space-y-3 py-4">
+                  <h3 className="font-medium">{supplier.name}</h3>
+                  <p className="text-xs text-text-secondary">
+                    Annualized scenario total = goods + logistics + duties / annual adders + annual
+                    NRE allocation + other one-time charges.
+                  </p>
+                  <dl className="space-y-2 text-sm">
+                    {breakdown.components.map((c) => (
+                      <div key={c.key} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+                        <dt className="min-w-0 break-words">
+                          {c.label}
+                          {c.key.startsWith("one-time-") &&
+                          /nre/i.test(c.label) &&
+                          settings.nreYears > 1
+                            ? ` · Annual allocation over ${settings.nreYears} years`
+                            : ""}
+                        </dt>
+                        <dd>{formatCurrency(c.amountUsd)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ))}
+            </div>
+          </details>
+        </>
+      )}
+    </Section>
+  );
+}

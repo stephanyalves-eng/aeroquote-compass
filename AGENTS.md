@@ -25,3 +25,6 @@
 - Six-step navigation and progress summary live in pure navigation.ts layered on workflow-stages.ts; bulk-confirm previews in bulk-confirm.ts; UI formatting in src/lib/format.ts. Why: progress, safety previews and number display stay deterministic and testable outside components.
 
 - Presentation-only shortlist limits, comparison highlights, pending-item ordering and PO progress live in pure presentation.ts; responsive records reuse the same inputs with human-labelled mobile cells. Why: display changes cannot bypass procurement gates or duplicate editable state.
+
+- Round 3 simulations clone confirmed quotations in scenarios.ts and reuse existing cost/scoring engines, preserving baseline award blockers and canonical approvals; scenario drafts are never saved or exported as decisions. Why: what-if experiments must not alter procurement evidence.
+- Revision diffs compare recorded registry metadata and immutable check snapshots in revision-diff.ts; operations.ts derives current and saved RFQ attention summaries. Why: never infer engineering dimensions or operational state from summary costs.
