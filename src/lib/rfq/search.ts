@@ -3,7 +3,7 @@ import type { RfqReference } from "./types";
 import type { PoState } from "./po-types";
 import type { DocumentRevision } from "./revisions";
 import { DEMO_DRAWING } from "./revisions";
-import { displaySupplierName } from "./supplier-name";
+import { normalizeSupplierName } from "./supplier-name";
 
 export type SearchKind = "RFQ" | "Supplier" | "Quote" | "Part number" | "PO" | "Drawing" | "Revision";
 export interface SearchEntry {
@@ -29,7 +29,7 @@ export function buildSearchEntries(input: SearchInput): SearchEntry[] {
   if (reference.partNumber)
     entries.push({ id: "part", kind: "Part number", label: reference.partNumber, detail: `Revision ${reference.revision || "not provided"}`, step: 0 });
   for (const d of documents) {
-    const supplier = displaySupplierName(d.reviewed?.supplier_name ?? d.original?.supplier_name ?? "", d.text ?? "");
+    const supplier = normalizeSupplierName(d.reviewed?.supplier_name ?? d.original?.supplier_name ?? "", d.text ?? "").display;
     if (supplier)
       entries.push({ id: `supplier-${d.id}`, kind: "Supplier", label: supplier, detail: d.fileName, step: d.confirmed ? 3 : 2 });
     entries.push({ id: `quote-${d.id}`, kind: "Quote", label: d.fileName, detail: supplier || "Quotation document", step: 1 });
