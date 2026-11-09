@@ -13,3 +13,5 @@
 - [x] Verify real upload → extraction → review → comparison → export and desktop/tablet layouts.
 - [x] Bug-fix pass (16 items): extraction queue integrity, local date, PDF source text, review auto-advance, mode-based peer anomalies, partial-logistics eligibility, weight tolerance, incumbent matching, min-max scoring, generated recommendation rationale, display/export formatting, sample incumbent. 73 tests pass; sample flow verified end-to-end.
 - [x] Verify signed-in private save → history → reopen: existing account session used; confirmed sample saved and reopened successfully.
+- [x] Scan every sheet/section of the analysis export for internal field names, with regression tests
+- [x] Tests: accepting PO discrepancies for each demo PO (partial acceptance, justification, audit events, release eligibility)
