@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { normalizeSupplierName } from "@/lib/rfq/supplier-name";
-export const control = "w-full min-w-0 rounded-sm border border-border-default bg-surface-card px-3 py-2 text-sm outline-none";
+export const control = "w-full min-w-0 rounded-sm border border-border-default bg-surface-card px-3 py-2 text-sm";
 export function Section({ title, subtitle, action, children }: { title: string; subtitle?: string | undefined; action?: ReactNode; children: ReactNode }) {
   return <section className="space-y-5 rounded-lg border border-border-default bg-surface-card p-5 sm:p-6"><div className="flex flex-wrap items-end justify-between gap-4"><div><h2 className="text-lg font-medium">{title}</h2>{subtitle && <p className="mt-1 text-sm text-text-tertiary">{subtitle}</p>}</div>{action}</div>{children}</section>;
 }
