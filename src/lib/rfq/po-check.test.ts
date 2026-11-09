@@ -35,4 +35,6 @@ describe("Phase 3 purchase order controls",()=>{
   it("FX tolerance is applied to converted values, not currency identity",()=>{const supplier={...atlas,baseline:{...atlas.baseline,quote:{...atlas.baseline.quote,currency:"EUR" as const}},document:{...atlas.document,reviewed:{...context.quote,currency:"EUR" as const}}};const c=buildApprovedPoContext(ref,supplier,decision);const p=demoPurchaseOrder(c,"Within tolerance");const r=checkPurchaseOrder(p,c);expect(r.items.find((i)=>i.id==="usdBrl")?.status).toBe("confirmed");expect(r.items.find((i)=>i.id==="usdBrl")?.note).toContain("±2%");expect(poSummary(r).canRelease).toBe(true);expect(checkPurchaseOrder({...p,usdBrl:ref.usdBrl*1.03},c).items.find((i)=>i.id==="usdBrl")?.status).toBe("requires_review");});
   it("lead date beyond required delivery requires review",()=>{expect(checkPurchaseOrder({...correct(),deliveryDate:"2027-03-16"},context).items.find((i)=>i.id==="deliveryDate")?.status).toBe("requires_review");});
 
+  it("does not invent dollar impacts for payment or delivery day differences",()=>{const result=checkPurchaseOrder({...correct(),paymentTermsDays:45,leadTimeDays:125},context);expect(result.items.find((i)=>i.id==="paymentTermsDays")?.financialImpactUsd).toBeNull();expect(result.items.find((i)=>i.id==="leadTimeDays")?.financialImpactUsd).toBeNull();});
+
 });
