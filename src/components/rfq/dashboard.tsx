@@ -16,7 +16,7 @@ const number = (x: number | null | undefined) => x == null ? "Not provided" : x.
 const days = (x: number | null | undefined) => x == null ? "Not provided" : `${x} days`;
 const axisK = (n: number) => `$${Math.round(n / 1000)}k`;
 const usd0 = (v: unknown) => `$${Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-export function Dashboard({ list, reference, weights, onWeights, approvedDecision, onRecord }: { approvedDecision?: ApprovedDecision; onRecord: (id: string, justification: string) => void; list: Intelligence[]; reference: RfqReference; weights: Weights; onWeights: (w: Weights) => void }) {
+export function Dashboard({ list, reference, weights, onWeights, approvedDecision, onRecord }: { approvedDecision?: ApprovedDecision | undefined; onRecord: (id: string, justification: string) => void; list: Intelligence[]; reference: RfqReference; weights: Weights; onWeights: (w: Weights) => void }) {
   const insight = decisionInsights(list, reference); const recommended = insight.recommended;
   const [metric, setMetric] = useState("annualLanded"); const [sorted, setSorted] = useState(true); const [exporting, setExporting] = useState(false); const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<string[]>([]);

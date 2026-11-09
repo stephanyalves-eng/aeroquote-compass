@@ -68,7 +68,7 @@ export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intel
     add("Risk Assessment", list.flatMap((a) => [{ Supplier: a.name, Risk: a.risk, Observation: "Overall risk", Critical: !a.eligible }, ...a.anomalies.map((x) => ({ Supplier: a.name, Risk: a.risk, Observation: x.message, Critical: x.critical }))]));
     add("Recommendation", [{ Supplier: insights.recommended?.name ?? "No eligible supplier", "Savings USD": round2(insights.savings), "Baseline": insights.baselineLabel, "Annual landed USD": round2(insights.recommended?.annualLanded ?? null), Why: insights.why ?? "Not provided" }]);
     add("Decision Explanation", explanationRows.map(([Metric, Value]) => ({ Metric, Value })));
-    add("Landed Cost Breakdown", breakdowns.flatMap(({ a, b }) => b.validationErrors.length ? b.validationErrors.map((Error) => ({ Supplier: a.name, Error })) : b.components.map((c) => ({ Supplier: a.name, Component: c.label, "Original amount": c.amountOriginal, Currency: c.currencyOriginal, "FX to USD": c.fxRate, "Amount USD": round2(c.amountUsd), Source: SOURCE_LABELS[c.source], Treatment: c.note, Formula: c.formula }))));
+    add("Landed Cost Breakdown", breakdowns.flatMap<object>(({ a, b }) => b.validationErrors.length ? b.validationErrors.map((Error) => ({ Supplier: a.name, Error })) : b.components.map((c) => ({ Supplier: a.name, Component: c.label, "Original amount": c.amountOriginal, Currency: c.currencyOriginal, "FX to USD": c.fxRate, "Amount USD": round2(c.amountUsd), Source: SOURCE_LABELS[c.source], Treatment: c.note, Formula: c.formula }))));
     X.writeFile(wb, `${filename}-analysis.xlsx`); return;
   }
   const { jsPDF } = await import("jspdf"); const { default: autoTable } = await import("jspdf-autotable");

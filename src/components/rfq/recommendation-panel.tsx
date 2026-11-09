@@ -10,7 +10,7 @@ import type { RfqReference } from "@/lib/rfq/types";
 import { Section, Money, Field, control } from "./primitives";
 import { LandedDiff } from "./landed-breakdown";
 export function EligibilityBadge({ status }: { status: EligibilityStatus }) { return <span className={`inline-flex rounded-sm border px-2 py-1 font-mono text-[11px] uppercase ${status === "not_eligible" ? "border-error bg-error-bg text-error" : status === "awaiting_review" ? "border-border-default bg-warning-bg text-warning" : "border-border-default bg-success-bg text-success"}`}>{ELIGIBILITY_LABELS[status]}</span>; }
-export function RecommendationPanel({ list, reference, weights, approvedDecision, onRecord, onCalculation, onExport }: { list: Intelligence[]; reference: RfqReference; weights: Weights; approvedDecision?: ApprovedDecision; onRecord: (id: string, justification: string) => void; onCalculation: (id: string) => void; onExport: () => void }) {
+export function RecommendationPanel({ list, reference, weights, approvedDecision, onRecord, onCalculation, onExport }: { list: Intelligence[]; reference: RfqReference; weights: Weights; approvedDecision?: ApprovedDecision | undefined; onRecord: (id: string, justification: string) => void; onCalculation: (id: string) => void; onExport: () => void }) {
   const explanation = explainRecommendation(list, reference, weights), r = explanation.recommended;
   const [open, setOpen] = useState(false), [selected, setSelected] = useState(""), [justification, setJustification] = useState(""), [attempted, setAttempted] = useState(false), [otherId, setOtherId] = useState("");
   const other = list.find((a) => a.document.id === otherId);
