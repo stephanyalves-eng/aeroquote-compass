@@ -1,3 +1,4 @@
+import { RevisionDiffPanel } from "./revision-diff-panel";
 import { useState } from "react";
 import { AlertTriangle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ export function ConfigurationPanel({ registry, snapshots, at, alerts, assessment
       return <section key={a.key} role="alert" className={`space-y-3 rounded-sm border p-4 ${cur?.level === "No known impact" ? "border-border-default" : "border-warning bg-warning-bg"}`}>
         <p className="flex items-center gap-2 font-medium text-warning"><AlertTriangle className="size-4" strokeWidth={1.5} />New revision detected</p><p className="text-sm">{a.message}</p>
         <p className="text-xs text-text-secondary">Document {a.documentNumber} · Rev {a.previousRevision} → Rev {a.newRevision} · changed {a.changedOn} · affected stages: {a.affectedStages.join(", ")} · {a.affectedChecks.length} check(s) against the previous revision</p>
+        <RevisionDiffPanel registry={registry} snapshots={snapshots} alert={a} assessments={assessments} />
         {cur && <p className="text-sm">Latest <Term name="Configuration review" />: <Tag tone={toneFor(cur.level)}>{cur.level}</Tag> — {cur.justification} ({cur.actor})</p>}
         <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_auto] lg:items-end"><Field label="Impact assessment"><select className={control} value={form.level} onChange={(e) => setAssess({ ...assess, [a.key]: { ...form, level: e.target.value as ImpactLevel } })}>{IMPACT_LEVELS.map((l) => <option key={l}>{l}</option>)}</select></Field>
           <Field label="Justification (required)"><input className={control} value={form.justification} onChange={(e) => setAssess({ ...assess, [a.key]: { ...form, justification: e.target.value } })} /></Field>
