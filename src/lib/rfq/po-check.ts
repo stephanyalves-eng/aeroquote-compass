@@ -19,6 +19,7 @@ export function toleranceErrors(t: PoTolerances): string[] {
   return PO_TOLERANCE_FIELDS.flatMap((f) => Number.isFinite(t[f.key]) && t[f.key] >= 0 && (f.key !== "quantityUnits" && f.key !== "leadTimeDays" || Number.isInteger(t[f.key])) && (!f.key.endsWith("Percent") || t[f.key] <= 100) ? [] : [`${f.label} must be a non-negative ${f.key === "quantityUnits" || f.key === "leadTimeDays" ? "whole number" : f.key.endsWith("Percent") ? "number no greater than 100" : "number"}.`]);
 }
 export function emptyPoState(): PoState { return { tolerances: { ...DEFAULT_PO_TOLERANCES }, resolutions: [], released: false }; }
+export function invalidatePoState(state: PoState): PoState { return { ...emptyPoState(), tolerances: { ...state.tolerances } }; }
 export const approvalReferenceFor = (d: ApprovedDecision, r: RfqReference) => `${r.rfqNumber} / ${d.supplier} / ${d.timestamp}`;
 /** All financial values in the PO use the selected quotation currency. Unknown quoted logistics remain null, not quoted zero. */
 export function buildApprovedPoContext(reference: RfqReference, supplier: Intelligence, decision: ApprovedDecision): ApprovedPoContext {
