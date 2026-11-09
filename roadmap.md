@@ -1,5 +1,5 @@
 # AeroQuote Compass
-- [ ] Phase 1: review issues, individual/bulk confirmation, demo audit events and backward-compatible snapshots; verify tests and desktop/mobile sample flow.
+- [x] Phase 1: review issues, individual/bulk confirmation, demo audit events and backward-compatible snapshots; 107 tests pass, desktop/mobile sample review and focus/actions verified, all exports download, private save/reopen retains confirmations. Legacy rules, sample text, costs and Atlas recommendation unchanged at 2026-10-25.
 - [x] Align Best Overall with eligible recommendation and correct plurality wording; all 78 tests pass and live sample extraction → four confirmations → comparison verifies Atlas badge, unchanged costs and savings.
 - [x] Extend RFQ setup, batch uploads and extraction metadata; preserve legacy rules.
 - [x] Require editable buyer review before calculated comparisons.
@@ -8,4 +8,4 @@
 - [x] Add private Cloud history with optional sign-in for saving only.
 - [x] Verify real upload → extraction → review → comparison → export and desktop/tablet layouts.
 - [x] Bug-fix pass (16 items): extraction queue integrity, local date, PDF source text, review auto-advance, mode-based peer anomalies, partial-logistics eligibility, weight tolerance, incumbent matching, min-max scoring, generated recommendation rationale, display/export formatting, sample incumbent. 73 tests pass; sample flow verified end-to-end.
-- [ ] Verify signed-in private save → history → reopen: no auth users exist; requester must first sign in.
+- [x] Verify signed-in private save → history → reopen: existing account session used; confirmed sample saved and reopened successfully.
