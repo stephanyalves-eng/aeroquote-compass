@@ -13,6 +13,20 @@ export type ConfirmationInput = Pick<
   SupplierConfirmation,
   "confirmedOn" | "expectedDelivery" | "reference"
 >;
+export const RFQ_CONFIRMED_RECOMMENDATION_EVENT =
+  "RFQ recommendation after supplier confirmation measured";
+/** Counts a recommendation milestone once per RFQ audit, including saved/reopened versions. */
+export function shouldMeasureConfirmedRecommendation(
+  state: PoState,
+  hasRecommendation: boolean,
+  audit: AuditEvent[],
+): boolean {
+  return (
+    hasRecommendation &&
+    Boolean(currentSupplierConfirmation(state)) &&
+    !audit.some((e) => e.action === RFQ_CONFIRMED_RECOMMENDATION_EVENT)
+  );
+}
 const fingerprint = (po: PurchaseOrder) =>
   JSON.stringify(Object.entries(po).sort(([a], [b]) => a.localeCompare(b)));
 export function currentSupplierConfirmation(
