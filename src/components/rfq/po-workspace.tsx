@@ -107,6 +107,7 @@ function PoList({
     search: "",
     status: "",
     supplier: "",
+    rfq: "",
     buyer: "",
     currency: "",
     from: "",
@@ -159,6 +160,7 @@ function PoList({
           [
             ["status", "PO status", [...new Set(rows.map((r) => r.status))]],
             ["supplier", "PO supplier", [...new Set(rows.map((r) => r.po.supplier))]],
+            ["rfq", "PO RFQ", [...new Set(rows.map((r) => r.rfq))]],
             ["buyer", "PO buyer", [...new Set(rows.map((r) => r.po.buyer))]],
             ["currency", "PO currency", ["USD", "EUR", "BRL"]],
           ] as const
@@ -298,8 +300,9 @@ interface Props {
   onTransition: (action: PoLifecycleAction) => void;
   onError: (message: string) => void;
   onExport: () => void;
+  draftDirty: boolean;
 }
-export function PoWorkspace({ state, context, blocked, onTransition, onError, onExport }: Props) {
+export function PoWorkspace({ state, context, blocked, onTransition, onError, onExport, draftDirty }: Props) {
   const [view, setView] = useState<"check" | "list" | "document">("check"),
     [zoom, setZoom] = useState(100),
     [full, setFull] = useState(false),
@@ -422,7 +425,8 @@ export function PoWorkspace({ state, context, blocked, onTransition, onError, on
         <div className="flex flex-wrap gap-2">
           {phase === "Draft" && (
             <Button
-              disabled={Boolean(state.po && draftErrors(state.po).length)}
+              disabled={draftDirty || Boolean(state.po && draftErrors(state.po).length)}
+              title={draftDirty ? "Save or discard draft changes before generating." : undefined}
               onClick={() => act("Generate")}
             >
               <FilePlus />

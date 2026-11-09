@@ -109,7 +109,8 @@ describe("PO lifecycle safeguards", () => {
   it("prevents edits after generation and preserves the issued document after amendment", () => {
     const { state } = issued();
     if (!state.po) throw new Error("PO required");
-    expect(() => savePoDraft(state, { ...state.po, unitPrice: 1 }, time, actor)).toThrow(
+    const po = state.po;
+    expect(() => savePoDraft(state, { ...po, unitPrice: 1 }, time, actor)).toThrow(
       "amendment",
     );
     const before = JSON.stringify(state);
@@ -284,6 +285,8 @@ describe("PO document and list evidence", () => {
       sort: "updated" as const,
     };
     expect(filterPoList(rows, f)).toHaveLength(1);
+    expect(filterPoList(rows, { ...f, rfq: "RFQ-other" })).toHaveLength(0);
+    expect(filterPoList(rows, { ...f, rfq: "RFQ-24410" })).toHaveLength(1);
     expect(filterPoList(rows, { ...f, from: "2027-01-01" })).toHaveLength(0);
     expect(poListCsv(rows)).toContain('"PO number","RFQ","Supplier"');
     expect(poListCsv(rows)).not.toContain("totalValue");

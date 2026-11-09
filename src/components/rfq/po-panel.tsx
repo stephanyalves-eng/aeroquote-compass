@@ -63,6 +63,7 @@ interface Props {
   onTolerances: (t: PoTolerances) => void;
   onResolve: (id: string, action: PoResolution["action"], justification: string) => void;
   onRelease: () => void;
+  onDraftDirty: (dirty: boolean) => void;
 }
 export function PoPanel({
   context,
@@ -73,6 +74,7 @@ export function PoPanel({
   onTolerances,
   onResolve,
   onRelease,
+  onDraftDirty,
   configurationBlocked = false,
 }: Props) {
   const [scenario, setScenario] = useState<PoScenario>("Correct PO"),
@@ -94,6 +96,13 @@ export function PoPanel({
   const editPo = state.lifecycle ? draft : po;
   const changeDraft = (next: PurchaseOrder) => (state.lifecycle ? setDraft(next) : onEdit(next));
   const draftValidation = draft ? draftErrors(draft) : [];
+  useEffect(() => { onDraftDirty(dirty); }, [dirty, onDraftDirty]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   if (!context)
     return (
@@ -386,7 +395,7 @@ export function PoPanel({
                 Blocked: resolve the configuration review blockers above before release.
               </p>
             ) : (
-              <p className="text-sm text-success">Checks complete; buyer release is available.</p>
+              <p className="text-sm text-success">{poReleaseAllowed(state, Boolean(context), configurationBlocked) ? "Checks complete; buyer release is available." : "Checks complete. Confirm verification and prepare release in the PO workflow."}</p>
             ))}
         </div>
       </Section>

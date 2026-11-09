@@ -175,6 +175,7 @@ function Index() {
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [approvedDecision, setApprovedDecision] = useState<ApprovedDecision>();
   const [poState, setPoState] = useState<PoState>(emptyPoState);
+  const [poDraftDirty, setPoDraftDirty] = useState(false);
   const reopening = useRef(false);
   const [registry, setRegistry] = useState(demoRevisionRegistry);
   const [snapshots, setSnapshots] = useState<ConfigurationSnapshot[]>([]);
@@ -1141,6 +1142,8 @@ function Index() {
               : "Record a decision first."
             : null;
   const go = (i: number) => {
+    if (poDraftDirty && !window.confirm("Discard unsaved PO draft changes?")) return;
+    setPoDraftDirty(false);
     setStep(i);
     setNotice("");
     setHistory(false);

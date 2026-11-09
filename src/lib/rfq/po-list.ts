@@ -56,6 +56,7 @@ export interface PoListFilter {
   search: string;
   status: string;
   supplier: string;
+  rfq?: string;
   buyer: string;
   currency: string;
   from: string;
@@ -73,6 +74,7 @@ export function filterPoList(rows: PoListRow[], f: PoListFilter): PoListRow[] {
             .includes(f.search.toLowerCase())) &&
         (!f.status || r.status === f.status) &&
         (!f.supplier || r.po.supplier === f.supplier) &&
+        (!f.rfq || r.rfq === f.rfq) &&
         (!f.buyer || r.po.buyer === f.buyer) &&
         (!f.currency || r.po.currency === f.currency) &&
         (!f.from || r.po.issueDate >= f.from) &&
