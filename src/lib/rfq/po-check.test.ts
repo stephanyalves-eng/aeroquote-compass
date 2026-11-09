@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import { compareDocuments, DEFAULT_WEIGHTS } from "./intelligence";
 import { createApprovedDecision } from "./recommendation";
 import { sampleDocuments, sampleReference } from "./phase2-fixtures";
-import { buildApprovedPoContext, checkPurchaseOrder, DEFAULT_PO_TOLERANCES, emptyPoState, loadAndCheckPo, poSummary, purchaseOrderStatus, releasePurchase, resolvePoItem, toleranceErrors } from "./po-check";
+import { buildApprovedPoContext, invalidatePoState, checkPurchaseOrder, DEFAULT_PO_TOLERANCES, emptyPoState, loadAndCheckPo, poSummary, purchaseOrderStatus, releasePurchase, resolvePoItem, toleranceErrors } from "./po-check";
 import { demoPurchaseOrder } from "./po-samples";
-import type { PurchaseOrder } from "./po-types";
+import { procurementStages } from "./review-issues";
 const ref={...sampleReference,description:"Hydraulic actuator Y8",deliveryLocation:"São José dos Campos"};
 const list=compareDocuments(sampleDocuments,ref,DEFAULT_WEIGHTS);
 const atlas=list.find((a)=>a.name.startsWith("Atlas"));
@@ -30,4 +30,9 @@ describe("Phase 3 purchase order controls",()=>{
   it("invalid quantities and prices cannot pass huge tolerances",()=>{const p={...correct(),quantity:-1,unitPrice:NaN};expect(checkPurchaseOrder(p,context,{...DEFAULT_PO_TOLERANCES,quantityUnits:100000}).items.find((i)=>i.id==="quantity")?.status).toBe("blocker");});
   it("demo scenarios follow the overridden approved supplier",()=>{const m=list.find((a)=>a.name.startsWith("Meridian"));if(!m)throw new Error("Missing Meridian");const d=createApprovedDecision(list,ref,DEFAULT_WEIGHTS,m.document.id,"Supply continuity is preferred for this synthetic demo.","2026-10-25");const c=buildApprovedPoContext(ref,m,d);const p=demoPurchaseOrder(c,"Correct PO");expect(p.supplier).toBe(m.name);expect(p.totalValue).toBe(237800);expect(poSummary(checkPurchaseOrder(p,c)).canRelease).toBe(true);expect(poSummary(checkPurchaseOrder(demoPurchaseOrder(c,"Within tolerance"),c)).canRelease).toBe(true);});
   it("accepted fingerprints cannot bypass changed PO values",()=>{const s=loadAndCheckPo(demoPurchaseOrder(context,"Non-critical discrepancy"),context,DEFAULT_PO_TOLERANCES);if(!s.result)throw new Error("Missing result");const resolutions=resolvePoItem(s.result,[],"paymentTermsDays","accepted","Reviewed payment terms.","2026-10-25");const changed=checkPurchaseOrder({...correct(),paymentTermsDays:30},context);expect(poSummary(changed,resolutions).canRelease).toBe(false);});
+  it("invalidated approval clears PO, results, resolutions and release",()=>{const s=releasePurchase(loadAndCheckPo(correct(),context,DEFAULT_PO_TOLERANCES),true);const reset=invalidatePoState(s);expect(reset.po).toBeUndefined();expect(reset.result).toBeUndefined();expect(reset.resolutions).toEqual([]);expect(reset.released).toBe(false);expect(purchaseOrderStatus(reset,false)).toBe("Awaiting PO");});
+  it("release completes stage eight and blocked PO cannot complete it",()=>{expect(procurementStages(sampleDocuments,4,false,true,"PO checked and released",true,true)[7]?.status).toBe("Confirmed");expect(procurementStages(sampleDocuments,4,false,true,"PO blocked",true,true)[6]?.status).toBe("Blocked");expect(procurementStages(sampleDocuments,4,false,true,"PO blocked",true,true)[7]?.status).toBe("Pending");});
+  it("FX tolerance is applied to converted values, not currency identity",()=>{const supplier={...atlas,baseline:{...atlas.baseline,quote:{...atlas.baseline.quote,currency:"EUR" as const}},document:{...atlas.document,reviewed:{...context.quote,currency:"EUR" as const}}};const c=buildApprovedPoContext(ref,supplier,decision);const p=demoPurchaseOrder(c,"Within tolerance");const r=checkPurchaseOrder(p,c);expect(r.items.find((i)=>i.id==="usdBrl")?.status).toBe("confirmed");expect(r.items.find((i)=>i.id==="usdBrl")?.note).toContain("±2%");expect(poSummary(r).canRelease).toBe(true);expect(checkPurchaseOrder({...p,usdBrl:ref.usdBrl*1.03},c).items.find((i)=>i.id==="usdBrl")?.status).toBe("requires_review");});
+  it("lead date beyond required delivery requires review",()=>{expect(checkPurchaseOrder({...correct(),deliveryDate:"2027-03-16"},context).items.find((i)=>i.id==="deliveryDate")?.status).toBe("requires_review");});
+
 });
