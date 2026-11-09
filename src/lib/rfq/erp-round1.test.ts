@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import { erpProcessSteps, ERP_NAV, ERP_NAV_GROUPS, DASHBOARD_STEP, type ErpProcessInput } from "./erp-nav";
 import { buildSearchEntries, globalSearch } from "./search";
 import { requiresAttention } from "./operations";
-import { extendedSampleDocuments, confirmValidatedSamples, SAMPLE_CATALOG } from "./sample-catalog";
-import { analysisDateFor, newReference, type QuoteDocument } from "./workflow";
+import { extendedSampleDocuments, confirmValidatedSamples } from "./sample-catalog";
+import { analysisDateFor, newReference } from "./workflow";
 import { emptyPoState } from "./po-check";
 import { demoRevisionRegistry, detectRevisionChanges, publishRevision, DEMO_DRAWING } from "./revisions";
-import { demoPurchaseOrder, createPoFromApprovedDecision } from "./po-samples";
+import { demoPurchaseOrder } from "./po-samples";
 import { compareDocuments, DEFAULT_WEIGHTS, decisionInsights } from "./intelligence";
 import { createApprovedDecision } from "./recommendation";
 import { buildApprovedPoContext, loadAndCheckPo } from "./po-check";
@@ -152,8 +152,3 @@ describe("requiresAttention", () => {
     }
   });
 });
-
-// Keep vitest from flagging unused imports in fixtures above.
-void SAMPLE_CATALOG;
-void createPoFromApprovedDecision;
-void (0 as QuoteDocument | 0);
