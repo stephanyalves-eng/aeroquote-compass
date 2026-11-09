@@ -1,7 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState, useRef } from "react";
-import { ArrowRight, ArrowLeft, Save, History as HistoryIcon, Plus, Check } from "lucide-react";
+import { ArrowRight, ArrowLeft, Save, History as HistoryIcon, Plus, Menu, Undo2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { StepNav, ProgressLine, TraceabilityMenu, DemoData, BulkConfirmDialog } from "@/components/rfq/shell";
+import { mainSteps, progressSummary, MAIN_STEPS, TRACEABILITY, TRACE_OFFSET } from "@/lib/rfq/navigation";
+import { bulkConfirmPlan } from "@/lib/rfq/bulk-confirm";
 import { SaMonogram } from "@/assets/sa-monogram";
 import { Button } from "@/components/ui/button";
 import { extractQuote } from "@/lib/rfq/extract.functions";
@@ -19,7 +23,7 @@ import { Status, control } from "@/components/rfq/primitives";
 import type { ExtractedQuote } from "@/lib/rfq/types";
 import { createAuditEvent } from "@/lib/rfq/audit";
 import type { AuditEvent, ReviewField } from "@/lib/rfq/review-types";
-import { confirmReviewFields, editReviewDocument, quotationConfirmationErrors, reliableFields, sameReviewValue, restoreReviewField, toggleReviewFollowUp } from "@/lib/rfq/review-issues";
+import { reviewSummary, confirmReviewFields, editReviewDocument, quotationConfirmationErrors, reliableFields, sameReviewValue, restoreReviewField, toggleReviewFollowUp } from "@/lib/rfq/review-issues";
 import { workflowStages } from "@/lib/rfq/workflow-stages";
 import { REVIEW_FIELDS } from "@/lib/rfq/workflow";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,7 +56,7 @@ export const Route = createFileRoute("/")({
     { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" },
   ] }), component: Index,
 });
-const steps = ["RFQ Setup", "Upload Quotes", "Buyer Validation", "Compare & Decide", "PO Check", "Configuration", "Audit Trail", "Investigation"];
+const steps: string[] = [...MAIN_STEPS.map((m) => m.label), ...TRACEABILITY];
 function Index() {
   const [reference, setReference] = useState(newReference);
   const [documents, setDocuments] = useState<QuoteDocument[]>([]);
@@ -82,6 +86,9 @@ function Index() {
   useEffect(() => { if (reopening.current) { reopening.current = false; return; } if (approvedDecision || poState.po || poState.result) record({ action: "PO reset: approval invalidated", details: { status: "Awaiting PO", reason: "Reviewed quotation, RFQ or scoring weights changed." } }); setApprovedDecision(undefined); setPoState(invalidatePoState(poState)); }, [documents, reference, weights]);
   const record = (event: Omit<AuditEvent, "id" | "timestamp" | "actor">) => setAuditEvents((events) => [...events, createAuditEvent({ ...event, id: crypto.randomUUID(), timestamp: reference.demoAnalysis ? `${reference.today}T12:00:00.000Z` : new Date().toISOString() })]);
   const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "unsaved" | "failed">("idle");
+  const skipDirty = useRef(true);
+  useEffect(() => { if (skipDirty.current) { skipDirty.current = false; return; } setSaveState((s) => s === "saving" ? s : "unsaved"); }, [documents, reference, weights, approvedDecision, poState, registry, assessments]);
   const extract = useServerFn(extractQuote); const save = useServerFn(saveHistory);
   useEffect(() => setReference((r) => ({ ...r, today: r.today || localToday() })), []);
   const validReference = referenceErrors(reference).length === 0;
@@ -117,7 +124,9 @@ function Index() {
   };
   const confirmField = (id: string, field: ReviewField) => { const d = documents.find((x) => x.id === id); if (!d?.reviewed) return; patch(id, confirmReviewFields(d, [field])); record({ action: "Field confirmed", documentId: id, field, newValue: d.reviewed[field] }); };
   const followUp = (id: string, field: ReviewField) => { const d = documents.find((x) => x.id === id); if (!d) return; const updated = toggleReviewFollowUp(d, field); patch(id, updated); const value = updated.fieldStatus?.[field]?.followUp; record({ action: value ? "Follow-up flagged" : "Follow-up cleared", documentId: id, field, newValue: value }); };
-  const bulkConfirm = (id?: string) => { const targets = documents.filter((d) => !id || d.id === id).map((d) => ({ d, fields: reliableFields(d, documents, reference) })); setDocuments((ds) => ds.map((d) => { const t = targets.find((x) => x.d.id === d.id); return t ? confirmReviewFields(d, t.fields) : d; })); for (const t of targets) if (t.fields.length) record({ action: "Bulk confirm", documentId: t.d.id, details: { fields: t.fields, count: t.fields.length } }); };
+  const [bulkTarget, setBulkTarget] = useState<{ id?: string } | null>(null);
+  const [undoDocs, setUndoDocs] = useState<{ docs: QuoteDocument[]; count: number } | null>(null);
+  const bulkConfirm = (id?: string) => { const before = documents; const targets = documents.filter((d) => !d.excluded && (!id || d.id === id)).map((d) => ({ d, fields: reliableFields(d, documents, reference) })); setUndoDocs({ docs: before, count: targets.reduce((n, t) => n + t.fields.length, 0) }); setNotice(""); setDocuments((ds) => ds.map((d) => { const t = targets.find((x) => x.d.id === d.id); return t ? confirmReviewFields(d, t.fields) : d; })); for (const t of targets) if (t.fields.length) record({ action: "Bulk confirm", documentId: t.d.id, details: { fields: t.fields, count: t.fields.length } }); };
   const restoreField = (id: string, field: ReviewField) => { const d = documents.find((x) => x.id === id); if (!d?.original || !d.reviewed) return; patch(id, restoreReviewField(d, field, new Date().toISOString())); record({ action: "Field restored", documentId: id, field, previousValue: d.reviewed[field], newValue: d.original[field] }); setStatus("Draft"); };
   const loadSamples = () => {
     setAuditEvents([]); resetConfiguration();
@@ -179,15 +188,16 @@ function Index() {
     const { data } = await supabase.auth.getSession();
     if (!data.session) { setNotice("Sign in to save this analysis privately."); setHistory(true); return; }
     if (!reference.rfqNumber || !reference.partNumber) { setNotice("RFQ number and part number are required to save."); return; }
-    setSaving(true);
+    setSaving(true); setSaveState("saving");
     try {
       const insight = decisionInsights(results, reference);
       const snapshot: Snapshot = { configuration: { registry, snapshots, assessments, investigations }, reference, documents, weights, auditEvents, poState, ...(approvedDecision ? { approvedDecision } : {}), summary: { supplier: insight.recommended?.name ?? null, landed: insight.recommended?.annualLanded ?? null, savings: insight.savings } };
       const result = await save({ data: { ...(savedId ? { id: savedId } : {}), rfqNumber: reference.rfqNumber, partNumber: reference.partNumber, status, snapshot: JSON.stringify(snapshot) } });
-      setSavedId(result.id); setNotice("RFQ analysis saved privately.");
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Could not save this analysis."); } finally { setSaving(false); }
+      setSavedId(result.id); setNotice("");
+      setSaveState("saved"); skipDirty.current = true;
+    } catch (e) { setSaveState("failed"); setNotice(e instanceof Error ? e.message : "Could not save this analysis."); } finally { setSaving(false); }
   };
-  const open = (id: string, snapshot: Snapshot, storedStatus: RfqStatus) => { reopening.current = true; setAuditEvents(snapshot.auditEvents ?? []); setReference(snapshot.reference); setDocuments(snapshot.documents); setWeights(snapshot.weights); setStatus(storedStatus); setSavedId(id); setHistory(false); setStep(canCompare(snapshot.documents, snapshot.reference) ? 3 : 0); setNotice(""); setApprovedDecision(snapshot.approvedDecision); setPoState(snapshot.poState ?? emptyPoState()); setRegistry(snapshot.configuration?.registry ?? demoRevisionRegistry()); setSnapshots(snapshot.configuration?.snapshots ?? []); setAssessments(snapshot.configuration?.assessments ?? []); setInvestigations(snapshot.configuration?.investigations ?? initialInvestigations()); setSelected([]); };
+  const open = (id: string, snapshot: Snapshot, storedStatus: RfqStatus) => { reopening.current = true; skipDirty.current = true; setSaveState("saved"); setAuditEvents(snapshot.auditEvents ?? []); setReference(snapshot.reference); setDocuments(snapshot.documents); setWeights(snapshot.weights); setStatus(storedStatus); setSavedId(id); setHistory(false); setStep(canCompare(snapshot.documents, snapshot.reference) ? 3 : 0); setNotice(""); setApprovedDecision(snapshot.approvedDecision); setPoState(snapshot.poState ?? emptyPoState()); setRegistry(snapshot.configuration?.registry ?? demoRevisionRegistry()); setSnapshots(snapshot.configuration?.snapshots ?? []); setAssessments(snapshot.configuration?.assessments ?? []); setInvestigations(snapshot.configuration?.investigations ?? initialInvestigations()); setSelected([]); };
   const recommendedId = useMemo(() => ready ? decisionInsights(results, reference).recommended?.document.id ?? null : null, [results, reference, ready]);
   const rows = useMemo(() => explorerRows(documents, results, reference.rfqNumber, recommendedId), [documents, results, reference.rfqNumber, recommendedId]);
   const alerts = useMemo(() => detectRevisionChanges(registry, snapshots, configAt), [registry, snapshots, configAt]);
@@ -218,18 +228,19 @@ function Index() {
       {history ? <History onOpen={open} /> : <>
         <div className="flex flex-wrap items-center justify-between gap-4"><div><p className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-text-tertiary">Sourcing workspace</p><h2 className="mt-1 text-4xl font-medium tracking-[-0.02em]">{steps[step]}</h2></div><div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={loadSamples} disabled={busy}>Load sample quotes</Button><Button variant="outline" size="sm" onClick={loadExtended} disabled={busy}>Load extended sample (20 quotes)</Button></div></div>
         {reference.demoAnalysis && <p className="text-sm text-text-secondary">Demo analysis date (synthetic): {reference.today}</p>}
+        {step === 0 && <DemoData hasData={documents.length > 0 || auditEvents.length > 0} busy={busy} onClassic={loadSamples} onExtended={loadExtended} />}
         {step === 0 && <Setup reference={reference} onChange={(r) => { setReference(r); if (status !== "Draft") setStatus("Draft"); }} />}
         {step === 1 && <Uploads documents={documents} busy={busy} onFiles={files} onPaste={(text) => { setReference((r) => ({ ...r, ...analysisDateFor(false) })); if (documents.length < MAX_FILES) setDocuments([...documents, { id: crypto.randomUUID(), text, fileName: `pasted-quote-${documents.length + 1}.txt`, fileType: "txt", status: "Ready", confirmed: false }]); }} onRemove={(id) => { setDocuments((ds) => ds.filter((d) => d.id !== id)); setStatus("Draft"); }} onProcess={(id) => process(id)} onName={(id, name) => { const d = documents.find((x) => x.id === id); if (d?.reviewed) edit(id, { ...d.reviewed, supplier_name: name }); }} />}
         {step === 2 && isSampleSet && documents.some((d) => !d.confirmed && !d.excluded) && <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border-default bg-surface-card p-4 text-sm"><p>Demo shortcut: confirm every quotation marked validated in the synthetic catalog. Quotations with missing or low-confidence critical fields stay held for individual buyer validation.</p><Button size="sm" onClick={validateSamples}>Validate sample quotes (demo)</Button></div>}
         {step === 2 && <Review documents={documents} reference={reference} onEdit={edit} onFieldConfirm={confirmField} onFollowUp={followUp} onBulkConfirm={bulkConfirm} onReset={restoreField} onConfirm={(id) => { const d = documents.find((x) => x.id === id); if (d && !quotationConfirmationErrors(d).length) { patch(id, { confirmed: true, status: "Extracted", excluded: false }); record({ action: "Quotation confirmed", documentId: id, newValue: d.reviewed }); snap("Buyer validation", d.reviewed?.supplier_name ?? d.fileName, d.reviewed?.revision ?? null, d.reviewed?.revision ?? null, { result: "Confirmed", finalStatus: "Buyer validated" }); } }} />}
-        {step === 4 && poContext && <RevisionStrip registry={registry} snapshots={snapshots} at={configAt} blocked={gateBlocked(gate)} />}
-        {step === 4 && poContext && poState.po && <GatePanel items={gate} statement={verificationStatement(registry, configAt, configAt)} />}
-        {step === 5 && <ConfigurationPanel registry={registry} snapshots={snapshots} at={configAt} alerts={alerts} assessments={assessments} matrix={matrix} onPublish={publish} onAssess={assess} />}
-        {step === 6 && <AuditTrail events={timeline} onExport={exportSummary} />}
-        {step === 7 && <InvestigationPanel cases={CASES} investigations={investigations} onConfirm={confirmInvestigation} />}
-        {step === 4 && <PoPanel configurationBlocked={gateBlocked(gate)} context={poContext} state={poState} onLoad={loadPo} onCheck={checkPo} onResolve={resolvePo} onRelease={releasePo} onEdit={(po) => { setPoState({ ...poState, po, resolutions: [], released: false, result: undefined }); record({ action: "PO edited", newValue: po, details: { status: "PO awaiting check" } }); }} onTolerances={(tolerances) => { setPoState({ ...poState, tolerances, result: undefined, resolutions: [], released: false }); record({ action: "PO tolerances changed", details: { tolerances } }); }} />}
+        {step === 5 && poContext && <RevisionStrip registry={registry} snapshots={snapshots} at={configAt} blocked={gateBlocked(gate)} />}
+        {step === 5 && poContext && poState.po && <GatePanel items={gate} statement={verificationStatement(registry, configAt, configAt)} />}
+        {step === 6 && <ConfigurationPanel registry={registry} snapshots={snapshots} at={configAt} alerts={alerts} assessments={assessments} matrix={matrix} onPublish={publish} onAssess={assess} />}
+        {step === 7 && <AuditTrail events={timeline} onExport={exportSummary} />}
+        {step === 8 && <InvestigationPanel cases={CASES} investigations={investigations} onConfirm={confirmInvestigation} />}
+        {step === 5 && <PoPanel configurationBlocked={gateBlocked(gate)} context={poContext} state={poState} onLoad={loadPo} onCheck={checkPo} onResolve={resolvePo} onRelease={releasePo} onEdit={(po) => { setPoState({ ...poState, po, resolutions: [], released: false, result: undefined }); record({ action: "PO edited", newValue: po, details: { status: "PO awaiting check" } }); }} onTolerances={(tolerances) => { setPoState({ ...poState, tolerances, result: undefined, resolutions: [], released: false }); record({ action: "PO tolerances changed", details: { tolerances } }); }} />}
         {step === 3 && ready && documents.length > 4 && <QuoteExplorer rows={rows} selected={selected} onSelected={setSelected} />}
-        {step === 3 && ready && <Dashboard onSummary={exportSummary} selected={selected} list={results} reference={reference} weights={weights} onWeights={(w) => { record({ action: "Weights changed", details: { previousWeights: { ...weights }, weights: { ...w } } }); setWeights(w); }} approvedDecision={approvedDecision} onRecord={recordDecision} />}
+        {(step === 3 || step === 4) && ready && <Dashboard view={step === 3 ? "compare" : "decision"} onSummary={exportSummary} selected={selected} list={results} reference={reference} weights={weights} onWeights={(w) => { record({ action: "Weights changed", details: { previousWeights: { ...weights }, weights: { ...w } } }); setWeights(w); }} approvedDecision={approvedDecision} onRecord={recordDecision} />}
         <div className="flex flex-wrap items-center justify-between gap-4"><Button variant="outline" disabled={busy || step === 0} onClick={() => setStep(step - 1)}><ArrowLeft />Back</Button><div className="flex items-center gap-3">{step === 2 && <span className="text-xs text-muted-foreground">{documents.filter((d) => d.confirmed).length} / {documents.length} quotations confirmed</span>}{step === 0 && <Button onClick={() => { if (validReference) setStep(1); else setNotice(referenceErrors(reference).join(" ")); }}>Continue to upload<ArrowRight /></Button>}{step === 1 && <Button disabled={busy || !documents.length || documents.some((d) => d.status === "Uploading")} onClick={() => process()}>{busy ? "Extracting quotations…" : "Extract quotations"}<ArrowRight /></Button>}{step === 3 && <Button disabled={!poContext} onClick={() => setStep(4)}>Continue to PO Check<ArrowRight /></Button>}{step === 2 && <Button disabled={!ready || busy} onClick={() => { setStep(3); setStatus("Completed"); }}>Compare & Decide<ArrowRight /></Button>}</div></div>
       </>}
     </main><footer className="border-t border-border-default"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-6 sm:px-8"><div className="flex items-center gap-3"><SaMonogram color="#0B302B" height={20} /><span className="font-serif text-lg font-light">Stephany Alves</span><span aria-hidden="true" className="h-5 w-px bg-border-strong/40" /><span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-tertiary">Signal &amp; Structure</span></div><div className="space-y-1 text-xs text-text-tertiary sm:text-right"><p className="font-medium text-foreground">AI extracts. Code calculates. You decide.</p><p>Synthetic sample data for portfolio purposes. No real company data.</p><p className="font-serif text-sm italic">Complexity, made clear.</p></div></div></footer>
