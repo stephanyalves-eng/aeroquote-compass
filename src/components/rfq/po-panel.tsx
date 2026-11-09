@@ -96,10 +96,14 @@ export function PoPanel({
   const editPo = state.lifecycle ? draft : po;
   const changeDraft = (next: PurchaseOrder) => (state.lifecycle ? setDraft(next) : onEdit(next));
   const draftValidation = draft ? draftErrors(draft) : [];
-  useEffect(() => { onDraftDirty(dirty); }, [dirty, onDraftDirty]);
+  useEffect(() => {
+    onDraftDirty(dirty);
+  }, [dirty, onDraftDirty]);
   useEffect(() => {
     if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
@@ -395,7 +399,11 @@ export function PoPanel({
                 Blocked: resolve the configuration review blockers above before release.
               </p>
             ) : (
-              <p className="text-sm text-success">{poReleaseAllowed(state, Boolean(context), configurationBlocked) ? "Checks complete; buyer release is available." : "Checks complete. Confirm verification and prepare release in the PO workflow."}</p>
+              <p className="text-sm text-success">
+                {poReleaseAllowed(state, Boolean(context), configurationBlocked)
+                  ? "Checks complete; buyer release is available."
+                  : "Checks complete. Confirm verification and prepare release in the PO workflow."}
+              </p>
             ))}
         </div>
       </Section>

@@ -110,9 +110,7 @@ describe("PO lifecycle safeguards", () => {
     const { state } = issued();
     if (!state.po) throw new Error("PO required");
     const po = state.po;
-    expect(() => savePoDraft(state, { ...po, unitPrice: 1 }, time, actor)).toThrow(
-      "amendment",
-    );
+    expect(() => savePoDraft(state, { ...po, unitPrice: 1 }, time, actor)).toThrow("amendment");
     const before = JSON.stringify(state);
     const amended = transitionPo(state, "Amend", time, actor, true);
     expect(lifecycleStatus(amended)).toBe("Draft");

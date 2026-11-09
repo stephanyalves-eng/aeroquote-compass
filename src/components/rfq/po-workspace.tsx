@@ -302,7 +302,15 @@ interface Props {
   onExport: () => void;
   draftDirty: boolean;
 }
-export function PoWorkspace({ state, context, blocked, onTransition, onError, onExport, draftDirty }: Props) {
+export function PoWorkspace({
+  state,
+  context,
+  blocked,
+  onTransition,
+  onError,
+  onExport,
+  draftDirty,
+}: Props) {
   const [view, setView] = useState<"check" | "list" | "document">("check"),
     [zoom, setZoom] = useState(100),
     [full, setFull] = useState(false),
