@@ -23,3 +23,5 @@
 - The auditable decision summary is assembled by pure decision-summary.ts (sections of human-labelled strings) and rendered by exports.ts; audit-describe.ts turns audit events into readable text. Why: exports and the timeline must never expose internal field keys or raw JSON, and must state "Not yet recorded" instead of failing.
 - The eleven-stage display uses pure workflow-stages.ts with current comparison, review, decision and PO evidence and prerequisite gates. Why: held quotations and navigation selection must not produce contradictory progress.
 - Six-step navigation and progress summary live in pure navigation.ts layered on workflow-stages.ts; bulk-confirm previews in bulk-confirm.ts; UI formatting in src/lib/format.ts. Why: progress, safety previews and number display stay deterministic and testable outside components.
+
+- Presentation-only shortlist limits, comparison highlights, pending-item ordering and PO progress live in pure presentation.ts; responsive records reuse the same inputs with human-labelled mobile cells. Why: display changes cannot bypass procurement gates or duplicate editable state.

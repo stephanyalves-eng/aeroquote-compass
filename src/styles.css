@@ -229,3 +229,28 @@
     }
   }
 }
+
+/* Reflow the same editable records instead of duplicating inputs and focus IDs. */
+.review-fields, .mobile-data-table { max-width: 100%; overflow-x: auto; }
+@media (min-width: 768px) {
+  .review-fields table { min-width: 750px; }
+}
+@media (max-width: 767px) {
+  main button, main select, main input:not([type="checkbox"]), main textarea { min-height: 44px; }
+  main button { white-space: normal; height: auto; }
+  .review-fields, .mobile-data-table { overflow: visible; }
+  .review-fields table, .mobile-data-table table { display: block; min-width: 0; width: 100%; }
+  .review-fields thead, .mobile-data-table thead { display: none; }
+  .review-fields tbody, .mobile-data-table tbody { display: grid; gap: 16px; }
+  .review-fields tr, .mobile-data-table tr { display: grid; min-width: 0; padding: 16px; border: 1px solid var(--border-default); border-radius: var(--radius); }
+  .review-fields td, .mobile-data-table td { display: block; min-width: 0; max-width: 100%; padding: 8px 0; overflow-wrap: anywhere; }
+  .review-fields td::before, .mobile-data-table td::before { content: attr(data-label); display: block; margin-bottom: 8px; color: var(--text-secondary); font-family: var(--font-sans); font-size: 12px; font-weight: 500; }
+  .po-check-item { border: 1px solid var(--border-default); border-radius: var(--radius); padding: 16px; margin-top: 16px; }
+  .po-check-item > dl, .po-check-item > p { display: block; }
+  .po-check-item > dl { display: grid; grid-template-columns: minmax(0, 1fr); }
+}
+
+.comparison-hide-logistics :is(th, td):nth-child(n+3):nth-child(-n+8),
+.comparison-hide-commercial :is(th, td):nth-child(n+10):nth-child(-n+14),
+.comparison-hide-scores :is(th, td):nth-child(n+15) { display: none; }
+.explorer-table :is(th, td):nth-child(2) { position: sticky; left: 0; background: var(--surface-card); z-index: 10; }
