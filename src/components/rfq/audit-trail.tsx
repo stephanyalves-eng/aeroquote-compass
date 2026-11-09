@@ -4,11 +4,11 @@ import { Section, Field, control } from "./primitives";
 import { Tag, toneFor } from "./tone";
 import { EMPTY_TIMELINE_FILTER, filterTimeline, type TimelineEvent, type TimelineFilter } from "@/lib/rfq/audit-timeline";
 const LABELS: Record<keyof TimelineFilter, string> = { supplier: "Supplier", partNumber: "Part number", document: "Document", revision: "Revision", poNumber: "PO", type: "Event type" };
-export function AuditTrail({ events }: { events: TimelineEvent[] }) {
+export function AuditTrail({ events, onExport }: { events: TimelineEvent[]; onExport?: (format: "pdf" | "xlsx" | "csv") => void }) {
   const [f, setF] = useState<TimelineFilter>(EMPTY_TIMELINE_FILTER);
   const shown = useMemo(() => filterTimeline(events, f), [events, f]);
   const opts = (k: keyof TimelineFilter) => [...new Set(events.map((e) => e[k]).filter((x) => x && x !== "—"))].sort();
-  return <Section title="Auditable timeline" subtitle="Every document, validation, decision, PO and inspection event with its revision and fictional owner.">
+  return <Section title="Auditable timeline" subtitle="Every document, validation, decision, PO and inspection event with its revision and fictional owner." action={onExport && <div className="flex flex-wrap gap-2"><span className="self-center text-xs text-text-tertiary">Auditable decision summary:</span>{(["pdf", "xlsx", "csv"] as const).map((f) => <Button key={f} size="sm" variant="outline" onClick={() => onExport(f)}>{f === "xlsx" ? "Excel" : f.toUpperCase()}</Button>)}</div>}>
     <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">{(Object.keys(LABELS) as (keyof TimelineFilter)[]).map((k) => <Field key={k} label={LABELS[k]}><select className={control} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })}><option value="">All</option>{opts(k).map((o) => <option key={o}>{o}</option>)}</select></Field>)}</div>
     <div className="flex items-center gap-3 text-sm"><span>{shown.length} of {events.length} events</span>{Object.values(f).some(Boolean) && <Button size="sm" variant="ghost" onClick={() => setF(EMPTY_TIMELINE_FILTER)}>Clear filters</Button>}</div>
     {shown.length === 0 ? <p className="rounded-sm border border-dashed border-border-default p-6 text-center text-sm text-text-tertiary">No events match these filters.</p> :
