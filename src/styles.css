@@ -117,8 +117,8 @@
   --surface-inverse: oklch(0.265 0.045 175);
   /* Text */
   --text-primary: oklch(0.21 0.015 160);
-  --text-secondary: oklch(0.40 0.012 160);
-  --text-tertiary: oklch(0.485 0.01 160);
+  --text-secondary: oklch(0.37 0.012 160);
+  --text-tertiary: oklch(0.44 0.01 160);
   --text-disabled: oklch(0.60 0.008 160);
   --text-inverse: oklch(0.962 0.008 95);
   --text-brand: oklch(0.265 0.045 175);
