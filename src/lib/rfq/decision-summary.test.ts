@@ -52,9 +52,9 @@ describe("auditable decision summary", () => {
     expect(get("PO discrepancy table").some((r) => r[0] === "Revision" && r[8] === "Blocker")).toBe(true);
     const csv = summaryCsv(s);
     expect(csv).toContain("Unit price · 1 → 2"); expect(csv).toContain("Total Cost 50%"); expect(csv).toContain("AI confidence: Unit price 95%"); expect(csv).toContain("Demo pre-extraction");
-    for (const sec of s) for (const row of sec.rows) for (const cell of row) if (sec.title !== "Landed-cost composition" && sec.title !== "Scores and weight breakdown") expect(cell, `${sec.title}: ${cell}`).not.toMatch(KEY);
+    for (const sec of s) for (const row of sec.rows) for (const cell of row) expect(cell, `${sec.title}: ${cell}`).not.toMatch(KEY);
   });
   it("describes audit events with labels, not keys", () => {
-    expect(describeAudit(createAuditEvent({ id: "x", timestamp: "t", action: "Field confirmed", field: "payment_terms_days", newValue: 60 }))).toBe("Payment terms (days) · Not provided → 60");
+    expect(describeAudit(createAuditEvent({ id: "x", timestamp: "t", action: "Field confirmed", field: "payment_terms_days", newValue: 60 }))).toBe("Payment terms (days) · Value 60");
   });
 });

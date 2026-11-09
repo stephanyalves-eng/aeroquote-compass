@@ -19,7 +19,7 @@ const tolText = (t: unknown) => t && typeof t === "object" ? Object.entries(t as
 export function describeAudit(e: AuditEvent): string {
   const d = (e.details ?? {}) as Record<string, unknown>, parts: string[] = [];
   if (e.field) parts.push(fieldLabel(e.field));
-  if (e.previousValue !== undefined || (e.newValue !== undefined && e.field)) parts.push(`${humanValue(e.previousValue)} → ${humanValue(e.newValue)}`);
+  if (e.previousValue !== undefined) parts.push(`${humanValue(e.previousValue)} → ${humanValue(e.newValue)}`); else if (e.newValue !== undefined && e.field) parts.push(`Value ${humanValue(e.newValue)}`);
   if (d["fileName"]) parts.push(`File ${String(d["fileName"])}`);
   if (d["source"]) parts.push(String(d["source"]));
   if (d["analysisDate"]) parts.push(`Analysis date ${String(d["analysisDate"])}`);
