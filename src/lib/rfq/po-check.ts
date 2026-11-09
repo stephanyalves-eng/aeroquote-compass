@@ -133,7 +133,7 @@ export function purchaseOrderStatus(state: PoState, approved = true): PoStatus {
   if (!approved || !state.po) return "Awaiting PO";
   if (!state.result) return "PO awaiting check";
   const s = poSummary(state.result,state.resolutions);
-  return s.blockers || state.result.validationErrors.length ? "PO blocked" : s.discrepancies ? "PO with discrepancies" : state.released && s.canRelease ? "PO checked and released" : "PO awaiting check";
+  return s.blockers || state.result.validationErrors.length ? "PO blocked" : s.discrepancies ? "PO with discrepancies" : state.released && s.canRelease ? "PO checked and released" : s.canRelease ? "PO checked, awaiting release" : "PO awaiting check";
 }
 export function resolvePoItem(result: PoCheckResult, resolutions: PoResolution[], itemId: string, action: PoResolution["action"], justification: string, timestamp: string): PoResolution[] {
   const item=result.items.find((i)=>i.id===itemId);
