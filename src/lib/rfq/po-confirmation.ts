@@ -19,7 +19,9 @@ export function currentSupplierConfirmation(
   po = state.lifecycle?.issued ?? state.po,
 ) {
   if (!po) return undefined;
-  return [...(state.supplierConfirmations ?? [])].reverse().find((c) => c.poFingerprint === fingerprint(po));
+  return [...(state.supplierConfirmations ?? [])]
+    .reverse()
+    .find((c) => c.poFingerprint === fingerprint(po));
 }
 const validDate = (date: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(date) &&
