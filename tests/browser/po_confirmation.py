@@ -4,7 +4,7 @@ All screenshots and downloads remain under /tmp/browser/erp-po.
 """
 import asyncio,re,json,os
 from pathlib import Path
-from playwright.async_api import async_playwright, expect
+from playwright.async_api import async_playwright
 async def main():
  async with async_playwright() as p:
   b=await p.chromium.launch(headless=True); pg=await b.new_page(viewport={"width":1280,"height":1800}); errors=[];pg.on('pageerror',lambda e:errors.append(str(e)))
@@ -64,7 +64,7 @@ async def main():
    await btn('Save RFQ').click();await pg.get_by_text('Saved',exact=True).first.wait_for();await pg.set_viewport_size({'width':1280,'height':1800});await btn('RFQ History').click()
    card=pg.locator('article').filter(has=pg.get_by_role('heading',name='RFQ-24410',exact=True)).first
    await card.get_by_role('button',name='Open saved RFQ',exact=True).click();await btn('Purchase Orders').click();assert await pg.get_by_text('Draft · Revision 2',exact=True).is_visible();await btn('PO list').click();await pg.get_by_label('PO status').select_option('Superseded');assert await btn('Open PO').count()==1
-   await btn('Open PO').click();await pg.set_viewport_size({'width':390,'height':1800});await pg.get_by_role('article',name='Purchase order document').scroll_into_view_if_needed();await pg.screenshot(path='/tmp/browser/erp-po/mobile.png')
+   await btn('Open PO').click();assert await pg.get_by_role('article',name='Purchase order document').get_by_text('2027-03-20',exact=True).is_visible();await pg.set_viewport_size({'width':390,'height':1800});await pg.get_by_role('article',name='Purchase order document').scroll_into_view_if_needed();await pg.screenshot(path='/tmp/browser/erp-po/mobile.png')
   await pg.set_viewport_size({'width':1280,'height':1800});await btn('PO workflow').click();await pg.get_by_label('Load demo PO',exact=True).select_option('Blocked PO');await btn('Load demo PO').click()
   assert await btn('Release purchase').is_disabled()
   events=await pg.evaluate('window.__testPoEvents');blocked=[e for e in events if e['name']=='project.po_blocked'];assert len(blocked)==1 and blocked[0]['properties']['reason']=='verification' and blocked[0]['properties']['blockers']>0,events
