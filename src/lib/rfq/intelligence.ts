@@ -33,7 +33,7 @@ export interface Intelligence {
   costRank: number;
 }
 export function landedAnalysis(document: QuoteDocument, ref: RfqReference, index: number): Intelligence | null {
-  if (!document.confirmed || !document.reviewed) return null;
+  if (!document.confirmed || !document.reviewed || document.excluded) return null;
   const q = document.reviewed;
   const baseline = analyzeQuote(q, ref, index);
   const supplier = normalizeSupplierName(q.supplier_name, document.text);
