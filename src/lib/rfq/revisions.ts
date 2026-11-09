@@ -73,7 +73,7 @@ export function detectRevisionChanges(registry: DocumentRevision[], snapshots: r
   const groups = new Map<string, ConfigurationSnapshot[]>();
   for (const s of stale) groups.set(s.drawingRevision!, [...(groups.get(s.drawingRevision!) ?? []), s]);
   return [...groups.entries()].map(([prev, checks]) => {
-    const latest = [...checks].sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0]!;
+    const latest = checks.reduce((a, b) => (b.timestamp >= a.timestamp ? b : a));
     return { key: `${DEMO_DRAWING}:${prev}->${current.revision}`, documentNumber: DEMO_DRAWING, previousRevision: prev, newRevision: current.revision, changedOn: current.effectiveFrom,
       affectedChecks: checks.map((c) => ({ id: c.id, checkType: c.checkType, timestamp: c.timestamp })), affectedStages: [...new Set(checks.map((c) => c.checkType))],
       message: `${latest.checkType} was completed against revision ${prev}. Revision ${current.revision} became current afterwards. Re-evaluate the quotation and PO before manufacturing.` };
