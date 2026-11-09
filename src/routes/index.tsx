@@ -1528,13 +1528,14 @@ function Index() {
                     onConfirm={confirmInvestigation}
                   />
                 )}
-                {step === 5 && (
+                {(step === 5 || step === 9) && (
                   <PoWorkspace
                     state={poState}
                     context={poContext}
                     blocked={gateBlocked(gate)}
                     onTransition={changePoLifecycle}
                     onError={setNotice}
+                    draftDirty={poDraftDirty}
                     onExport={() =>
                       record({
                         action: "PO document exported",
@@ -1552,6 +1553,7 @@ function Index() {
                     onCheck={checkPo}
                     onResolve={resolvePo}
                     onRelease={releasePo}
+                    onDraftDirty={setPoDraftDirty}
                     onEdit={(po) => {
                       try {
                         const next = savePoDraft(poState, po, poTimestamp(), DEMO_BUYER);
