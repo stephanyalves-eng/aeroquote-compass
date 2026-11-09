@@ -245,21 +245,27 @@ function Index() {
     : null;
   const saveLabel = saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "failed" ? "Save failed" : saveState === "unsaved" ? "Unsaved changes" : "Not saved yet";
   const plan = bulkTarget ? bulkConfirmPlan(documents, reference, bulkTarget.id) : null;
+  const viewLabel = step === DASHBOARD_STEP ? "Dashboard" : steps[step] ?? "Dashboard";
+  const breadcrumb = history ? ["RFQ History"] : step === DASHBOARD_STEP ? ["Dashboard"] : [reference.rfqNumber || "New RFQ", viewLabel];
+  const newRfq = () => { setAuditEvents([]); resetConfiguration(); setReference({ ...newReference(), today: localToday() }); setDocuments([]); setSavedId(undefined); setStep(DASHBOARD_STEP); setHistory(false); setStatus("Draft"); setNotice(""); skipDirty.current = true; setSaveState("idle"); };
+  const openHistory = () => { setHistory(!history); setNotice(""); };
   return <div className="min-h-screen bg-background text-foreground">
     <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:bg-surface-card focus:p-2">Skip to content</a>
-    <header className="bg-surface-inverse text-text-inverse"><div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-8 md:py-5">
-      <div className="flex min-w-0 items-center gap-3"><SaMonogram height={28} /><span aria-hidden="true" className="hidden h-8 w-px bg-text-inverse/30 sm:block" /><div className="min-w-0"><h1 className="truncate text-lg font-medium md:text-xl">AeroQuote Compass</h1><p className="mt-0.5 hidden text-xs text-text-inverse/75 md:block">Strategic procurement · Supplier quotation intelligence</p></div></div>
-      <div className="hidden gap-2 md:flex"><Button variant="ghost" className="text-text-inverse hover:bg-text-inverse/10 hover:text-text-inverse" disabled={busy} onClick={() => { setHistory(!history); setNotice(""); }}><HistoryIcon strokeWidth={1.5} />RFQ History</Button><Button variant="ghost" className="text-text-inverse hover:bg-text-inverse/10 hover:text-text-inverse" disabled={busy} onClick={() => { setAuditEvents([]); resetConfiguration(); setReference({ ...newReference(), today: localToday() }); setDocuments([]); setSavedId(undefined); setStep(0); setHistory(false); setStatus("Draft"); setNotice(""); skipDirty.current = true; setSaveState("idle"); }}><Plus strokeWidth={1.5} />New RFQ</Button></div>
-      <div className="md:hidden"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Open menu" className="size-11 text-text-inverse hover:bg-text-inverse/10 hover:text-text-inverse"><Menu /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem className="min-h-11" disabled={busy} onSelect={() => { setHistory(!history); setNotice(""); }}><HistoryIcon />RFQ History</DropdownMenuItem>
-        <DropdownMenuItem className="min-h-11" disabled={busy} onSelect={() => { setAuditEvents([]); resetConfiguration(); setReference({ ...newReference(), today: localToday() }); setDocuments([]); setSavedId(undefined); setStep(0); setHistory(false); setStatus("Draft"); setNotice(""); skipDirty.current = true; setSaveState("idle"); }}><Plus />New RFQ</DropdownMenuItem>
-        <DropdownMenuItem className="min-h-11" disabled={busy} onSelect={() => go(0)}>Demo data</DropdownMenuItem>
-        <DropdownMenuSeparator /><DropdownMenuLabel className="text-xs text-text-secondary">Traceability</DropdownMenuLabel>
-        {TRACEABILITY.map((t, i) => <DropdownMenuItem key={t} className="min-h-11" onSelect={() => go(TRACE_OFFSET + i)}>{t}</DropdownMenuItem>)}
-      </DropdownMenuContent></DropdownMenu></div>
-    </div></header>
+    <header className="sticky top-0 z-40 bg-surface-inverse text-text-inverse">
+      <div className="flex items-center gap-2 px-3 py-2 sm:px-5 md:py-2.5">
+        <MobileNav current={history ? -2 : step} disabled={stepDisabled} onSelect={go} onHistory={openHistory} onNewRfq={newRfq} busy={busy} />
+        <div className="flex min-w-0 items-center gap-2"><SaMonogram height={24} /><div className="min-w-0"><h1 className="truncate text-base font-medium">AeroQuote Compass</h1><Breadcrumb trail={breadcrumb} /></div></div>
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+          <GlobalSearch entries={searchEntries} onSearch={(q) => globalSearch(searchEntries, q)} onSelect={(entry) => go(entry.step)} />
+          <Notifications items={attentionItems} onSelect={go} />
+          <DemoUser />
+        </div>
+      </div>
+    </header>
+    <div className="flex items-start">
+      <ErpSidebar current={history ? -2 : step} disabled={stepDisabled} onSelect={go} onHistory={openHistory} onNewRfq={newRfq} busy={busy} />
+      <div className="min-w-0 flex-1">
     <div className="border-b border-border-default bg-surface-raised"><div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2 sm:px-8"><div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1"><span className="font-mono text-xs">{reference.rfqNumber || "NEW RFQ"}</span><Status>{status}</Status><span role="status" aria-live="polite" className={`text-xs ${saveState === "failed" ? "text-error" : saveState === "unsaved" ? "text-warning" : saveState === "saved" ? "text-success" : "text-text-secondary"}`}>{saveLabel}</span></div><div className="flex items-center gap-2"><select aria-label="RFQ status" className={`${control} hidden py-1 text-xs sm:block`} value={status} disabled={busy || (!ready && status === "Draft")} onChange={(e) => setStatus(e.target.value as RfqStatus)}>{["Draft", "Analyzing", "Completed", "Under Negotiation", "Awarded"].map((x) => <option key={x} disabled={x !== "Draft" && x !== "Analyzing" && !ready}>{x}</option>)}</select><Button variant="outline" size="sm" className="min-h-11 md:min-h-8" disabled={saving || busy} onClick={saveCurrent}><Save />{saving ? "Saving…" : "Save RFQ"}</Button></div></div></div>
-    {!history && <StepNav steps={main} current={step} summary={summary} disabled={stepDisabled} onSelect={go} />}
     <main id="main" className="mx-auto max-w-7xl min-w-0 space-y-6 px-4 pb-28 pt-6 sm:px-8 md:space-y-8 md:pb-10 md:pt-8">
       {notice && <div role="status" aria-live="polite" className="rounded-sm border border-border bg-muted px-4 py-3 text-sm">{notice}</div>}
       {undoDocs && <div role="status" aria-live="polite" className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-success bg-success-bg px-4 py-3 text-sm"><span className="text-success">Confirmed {undoDocs.count} reliable {undoDocs.count === 1 ? "field" : "fields"}.</span><div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => { setDocuments(undoDocs.docs); record({ action: "Bulk confirm undone", details: { count: undoDocs.count } }); setUndoDocs(null); }}><Undo2 />Undo</Button><Button size="sm" variant="ghost" onClick={() => setUndoDocs(null)}>Dismiss</Button></div></div>}
