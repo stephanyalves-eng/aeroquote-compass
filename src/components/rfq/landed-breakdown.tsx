@@ -1,0 +1,23 @@
+import { FileText, Pencil, Calculator, Info } from "lucide-react";
+import { buildLandedCostBreakdown, SOURCE_LABELS, componentDiff } from "@/lib/rfq/landed-cost";
+import type { Intelligence } from "@/lib/rfq/intelligence";
+import type { RfqReference } from "@/lib/rfq/types";
+import { Money } from "./primitives";
+const icons = { extracted: FileText, buyer: Pencil, calculated: Calculator, assumption: Info };
+export function LandedBreakdown({ supplier, reference }: { supplier: Intelligence; reference: RfqReference }) {
+  const b = buildLandedCostBreakdown(supplier, { reference });
+  return <div className="space-y-4 text-sm">
+    {b.validationErrors.length > 0 ? <ul role="alert" className="space-y-2 text-error">{b.validationErrors.map((e) => <li key={e}>{e}</li>)}</ul> : <>
+      <dl className="grid gap-3 sm:grid-cols-4">{[["Applicable unit price", `${b.inputs.currency} ${b.inputs.unitPrice?.toLocaleString("en-US")}`], ["Annual quantity", b.inputs.annualQuantity], ["Original currency", b.inputs.currency], ["FX to USD", b.inputs.fxRate?.toFixed(6)]].map(([label, value]) => <div key={String(label)}><dt className="text-xs text-text-tertiary">{label}</dt><dd className="mt-1 tabular-nums">{value}</dd></div>)}</dl>
+      <div className="overflow-x-auto"><table className="hidden w-full min-w-[800px] text-left text-xs md:table"><thead className="bg-surface-sunken"><tr>{["Component", "Original value", "FX to USD", "USD value", "Source", "Treatment / note", "Formula"].map((s) => <th key={s} className="p-3 font-mono uppercase text-text-tertiary">{s}</th>)}</tr></thead><tbody>{b.components.map((c) => { const Icon = icons[c.source]; return <tr key={c.key} className="border-b border-border-subtle"><th className="p-3 font-medium">{c.label}</th><td className="p-3 tabular-nums">{c.currencyOriginal} {c.amountOriginal.toLocaleString("en-US", { maximumFractionDigits: 2 })}</td><td className="p-3">{c.fxRate.toFixed(6)}</td><td className="p-3"><Money value={c.amountUsd} /></td><td className="p-3"><span className="inline-flex items-center gap-1 text-text-secondary"><Icon size={14} strokeWidth={1.5} />{SOURCE_LABELS[c.source]}</span></td><td className="p-3">{c.note || "Annual cost"}</td><td className="p-3"><span tabIndex={0} title={c.formula} aria-label={c.formula}><Info size={16} strokeWidth={1.5} /></span></td></tr>; })}</tbody></table></div>
+      <dl className="divide-y divide-border-subtle md:hidden">{b.components.map((c) => { const Icon = icons[c.source]; return <div key={c.key} className="space-y-2 py-4"><dt className="font-medium">{c.label}</dt><dd className="tabular-nums">{c.currencyOriginal} {c.amountOriginal.toLocaleString("en-US", { maximumFractionDigits: 2 })} · FX {c.fxRate.toFixed(6)} · <Money value={c.amountUsd} /></dd><dd className="flex items-center gap-2 text-xs text-text-secondary"><Icon size={14} strokeWidth={1.5} />{SOURCE_LABELS[c.source]}</dd><dd className="text-xs text-text-tertiary">{c.note}</dd><dd className="text-xs">{c.formula}</dd></div>; })}</dl>
+      <p className="font-medium">Total annual delivered (landed) cost: <Money value={b.annualTotal} /></p>
+    </>}
+    <p className="text-xs text-text-tertiary">{b.formula}</p>
+  </div>;
+}
+export function LandedDiff({ left, right, reference }: { left: Intelligence; right: Intelligence; reference: RfqReference }) {
+  const a = buildLandedCostBreakdown(left, { reference }), b = buildLandedCostBreakdown(right, { reference });
+  if (a.validationErrors.length || b.validationErrors.length) return <p role="alert" className="text-error">Resolve calculation errors before comparing cost components.</p>;
+  return <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-xs"><thead className="bg-surface-sunken"><tr>{["Component", left.name, right.name, "Difference (alternative − recommended)"].map((s) => <th key={s} className="p-3 font-mono uppercase text-text-tertiary">{s}</th>)}</tr></thead><tbody>{componentDiff(a, b).map((r) => <tr key={r.key} className="border-b border-border-subtle"><th className="p-3 font-medium">{r.label}</th><td className="p-3"><Money value={r.left} /></td><td className="p-3"><Money value={r.right} /></td><td className="p-3"><Money value={r.difference} /></td></tr>)}<tr><th className="p-3">Total</th><td className="p-3"><Money value={a.annualTotal} /></td><td className="p-3"><Money value={b.annualTotal} /></td><td className="p-3">{left.annualLanded != null && right.annualLanded != null ? <Money value={right.annualLanded - left.annualLanded} /> : "Not provided"}</td></tr></tbody></table></div>;
+}
