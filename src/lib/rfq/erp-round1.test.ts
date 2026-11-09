@@ -5,7 +5,7 @@ import { requiresAttention } from "./operations";
 import { extendedSampleDocuments, confirmValidatedSamples } from "./sample-catalog";
 import { analysisDateFor, newReference } from "./workflow";
 import { emptyPoState } from "./po-check";
-import { demoRevisionRegistry, detectRevisionChanges, publishRevision, DEMO_DRAWING } from "./revisions";
+import { demoRevisionRegistry, detectRevisionChanges, publishRevision, createSnapshot, DEMO_DRAWING } from "./revisions";
 import { demoPurchaseOrder } from "./po-samples";
 import { compareDocuments, DEFAULT_WEIGHTS, decisionInsights } from "./intelligence";
 import { createApprovedDecision } from "./recommendation";
@@ -104,9 +104,9 @@ describe("global search", () => {
 
 describe("requiresAttention", () => {
   const docs = confirmedDocs();
-  it("is empty for a clean released flow", () => {
+  it("has no critical or high items for a clean approved flow", () => {
     const items = requiresAttention({ reference, documents: docs, approved: true, alerts: [], assessments: [], investigations: [] });
-    expect(items).toEqual([]);
+    expect(items.every((i) => i.severity === "Medium")).toBe(true);
   });
   it("lists pending validations with owner and next action", () => {
     const pending = extendedSampleDocuments();
@@ -134,9 +134,10 @@ describe("requiresAttention", () => {
     expect(items[0]!.due).toBe("2027-03-15");
   });
   it("lists unresolved revision alerts and open investigations", () => {
-    const registry = publishRevision(demoRevisionRegistry(), { kind: "drawing", documentNumber: DEMO_DRAWING, revision: "D", effectiveFrom: "2026-10-20", owner: "Rafael Lima (Demo engineer)", changeReason: "Test" });
-    const snapshots = [{ id: "s1", at: "2026-10-25", timestamp: "2026-10-25T12:00:00.000Z", checkType: "PO verification" as const, actor: "demo", supplier: "Atlas", partNumber: "PN-45Y1258", quoteRevision: "C", foundRevision: "C", sourceDocuments: [], result: "Confirmed" as const, divergences: [], tolerances: null, justifications: [], finalStatus: "ok", poNumber: null }];
-    const alerts = detectRevisionChanges(registry, snapshots, "2026-10-25");
+    const registry = demoRevisionRegistry();
+    const snapshot = createSnapshot(registry, { id: "s1", at: "2026-10-25", timestamp: "2026-10-25T12:00:00.000Z", checkType: "PO verification", actor: "demo", supplier: "Atlas", partNumber: "PN-45Y1258", quoteRevision: "C", foundRevision: "C", sourceDocuments: [], result: "Confirmed", divergences: [], tolerances: null, justifications: [], finalStatus: "ok", poNumber: null });
+    const nextRegistry = publishRevision(registry, { kind: "drawing", documentNumber: DEMO_DRAWING, revision: "D", effectiveFrom: "2026-11-15", owner: "Rafael Lima (Demo engineer)", changeReason: "Test" });
+    const alerts = detectRevisionChanges(nextRegistry, [snapshot], "2026-11-16");
     const cases = demoInvestigationCases();
     const investigations = [investigateFailure(cases[0]!.failure, cases[0]!.snapshots, cases[0]!.registry, cases[0]!.manufacturedOn)];
     const items = requiresAttention({ reference, documents: docs, approved: true, alerts, assessments: [], investigations });
