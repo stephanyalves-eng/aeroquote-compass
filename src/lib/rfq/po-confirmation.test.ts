@@ -134,4 +134,12 @@ describe("Supplier confirmation", () => {
   it("legacy snapshots remain readable with no invented confirmation", () => {
     expect(currentSupplierConfirmation(fixture().issued)).toBeUndefined();
   });
+  it("stored records still match after JSON storage reorders PO keys", () => {
+    const state = recordSupplierConfirmation(fixture().issued, input, time, actor);
+    const po = state.lifecycle?.issued;
+    if (!po || !state.lifecycle) throw new Error("Missing issued PO");
+    const reordered = Object.fromEntries(Object.entries(po).reverse()) as typeof po;
+    const restored = { ...state, lifecycle: { ...state.lifecycle, issued: reordered } };
+    expect(currentSupplierConfirmation(restored)?.expectedDelivery).toBe("2027-03-15");
+  });
 });
