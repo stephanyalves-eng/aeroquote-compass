@@ -73,7 +73,7 @@ async def main():
   assert await btn('Release purchase').is_disabled()
   events=await pg.evaluate('window.__testPoEvents');blocked=[e for e in events if e['name']=='project.po_blocked'];assert len(blocked)==1 and blocked[0]['properties']['reason']=='verification' and blocked[0]['properties']['blockers']>0,events
   assert sum(e['name']=='project.po_validated' for e in events)==2,events
-  await btn('Update supplier confirmation').click() if await btn('Update supplier confirmation').count() else asyncio.sleep(0)
+  if await btn('Update supplier confirmation').count(): await btn('Update supplier confirmation').click()
   await pg.get_by_label('Supplier confirmation date',exact=True).fill('2026-10-26');await pg.get_by_label('Supplier expected delivery date',exact=True).fill('2027-03-25');await btn('Save supplier confirmation').click()
   events=await pg.evaluate('window.__testPoEvents')
   weekly=[e for e in events if e['name']=='project.rfq_recommended_after_supplier_confirmation']
