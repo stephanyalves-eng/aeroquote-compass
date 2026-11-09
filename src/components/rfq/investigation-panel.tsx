@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Section, Field, control } from "./primitives";
-import { Tag, toneFor } from "./tone";
+import { Tag } from "./tone";
 import { CLASSIFICATION_HELP, type FailureClassification, type FailureInvestigation } from "@/lib/rfq/investigation";
 import type { InvestigationCase } from "@/lib/rfq/investigation-demo";
 export function InvestigationPanel({ cases, investigations, onConfirm }: { cases: InvestigationCase[]; investigations: FailureInvestigation[]; onConfirm: (failureId: string, c: FailureClassification, note: string) => string | null }) {
@@ -18,7 +18,6 @@ export function InvestigationPanel({ cases, investigations, onConfirm }: { cases
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"><Field label="Classification to confirm"><select className={control} value={selected} onChange={(e) => setChoice({ ...choice, [f.id]: { ...form, c: e.target.value as FailureClassification } })}>{(Object.keys(CLASSIFICATION_HELP) as FailureClassification[]).map((c) => <option key={c}>{c}</option>)}</select></Field>
           <Field label={selected === inv.suggested ? "Note (optional)" : "Reason for differing from the suggestion (required)"}><input className={control} value={form.note} onChange={(e) => setChoice({ ...choice, [f.id]: { ...form, note: e.target.value } })} /></Field>
           <Button onClick={() => setError(onConfirm(f.id, selected, form.note) ?? "")}>Confirm classification</Button></div>}
-        <span className="sr-only">{toneFor(inv.suggested)}</span>
       </Section>; })}
   </div>;
 }
