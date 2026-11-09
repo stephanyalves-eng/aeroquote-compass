@@ -284,7 +284,8 @@ export function poLifecycleSteps(state: PoState, configurationBlocked: boolean) 
   const summary = poSummary(state.result, state.resolutions);
   const reviewed = checked && summary.canRelease;
   const revisionVerified = reviewed && !configurationBlocked;
-  const releaseReady = revisionVerified && (!state.lifecycle || state.lifecycle.phase === "Awaiting release");
+  const releaseReady =
+    revisionVerified && (!state.lifecycle || state.lifecycle.phase === "Awaiting release");
   const evidence = [
     ["PO draft", Boolean(state.po), false],
     ["Generated", generated, false],
@@ -297,7 +298,16 @@ export function poLifecycleSteps(state: PoState, configurationBlocked: boolean) 
   ] as const;
   let previousComplete = true;
   return evidence.map(([label, done, blocked]) => {
-    const status = state.lifecycle?.phase === "Cancelled" ? "Cancelled" : previousComplete && done ? "Completed" : previousComplete && blocked ? "Blocked" : previousComplete ? "In progress" : "Not started";
+    const status =
+      state.lifecycle?.phase === "Cancelled"
+        ? "Cancelled"
+        : previousComplete && done
+          ? "Completed"
+          : previousComplete && blocked
+            ? "Blocked"
+            : previousComplete
+              ? "In progress"
+              : "Not started";
     previousComplete = previousComplete && done;
     return { label, status };
   });

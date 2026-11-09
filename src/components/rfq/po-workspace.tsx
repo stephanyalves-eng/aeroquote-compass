@@ -21,7 +21,12 @@ import {
   poProvenance,
   type PoDocument,
 } from "@/lib/rfq/po-document";
-import { lifecycleStatus, draftErrors, poLifecycleSteps, type PoLifecycleAction } from "@/lib/rfq/po-lifecycle";
+import {
+  lifecycleStatus,
+  draftErrors,
+  poLifecycleSteps,
+  type PoLifecycleAction,
+} from "@/lib/rfq/po-lifecycle";
 import {
   poListRows,
   filterPoList,
@@ -483,8 +488,21 @@ export function PoWorkspace({
       {state.lifecycle && (
         <ol aria-label="PO lifecycle sequence" className="grid gap-2 sm:grid-cols-4 xl:grid-cols-8">
           {poLifecycleSteps(state, blocked).map((s, i) => (
-            <li key={s} className="border-l-2 border-border-default pl-2 text-xs">
-              <p>{i + 1} · {s.label}</p><p className={s.status === "Blocked" ? "mt-1 text-error" : s.status === "Completed" ? "mt-1 text-success" : "mt-1 text-text-secondary"}>{s.status}</p>
+            <li key={s.label} className="border-l-2 border-border-default pl-2 text-xs">
+              <p>
+                {i + 1} · {s.label}
+              </p>
+              <p
+                className={
+                  s.status === "Blocked"
+                    ? "mt-1 text-error"
+                    : s.status === "Completed"
+                      ? "mt-1 text-success"
+                      : "mt-1 text-text-secondary"
+                }
+              >
+                {s.status}
+              </p>
             </li>
           ))}
         </ol>
