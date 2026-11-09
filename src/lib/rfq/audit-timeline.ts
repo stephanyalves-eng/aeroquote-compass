@@ -4,7 +4,7 @@ import type { ConfigurationSnapshot, DocumentRevision, ImpactAssessment } from "
 import type { InspectionFailure, FailureInvestigation } from "./investigation";
 
 export interface TimelineEvent { id: string; timestamp: string; type: string; document: string; revision: string; actor: string; stage: string; result: string; impact: string; related: string[]; supplier: string; partNumber: string; poNumber: string }
-const TYPE_BY_ACTION: Record<string, string> = { "Extraction completed": "Quotation received", "Field edited": "Quotation validated", "Quotation confirmed": "Quotation validated", "Bulk confirm": "Quotation validated",
+const TYPE_BY_ACTION: Record<string, string> = { "Extraction completed": "Quotation received", "Field edited": "Quotation validated", "Quotation confirmed": "Quotation validated", "Bulk confirm": "Quotation validated", "Bulk confirm undone": "Quotation validated",
   "Recommended supplier": "Supplier recommended", "Final decision": "Decision approved", "PO created": "PO created", "PO loaded": "PO created", "PO check executed": "PO Check executed", "PO released": "PO released", "PO blocked": "PO Check executed" };
 export function buildTimeline(input: { registry: DocumentRevision[]; snapshots: readonly ConfigurationSnapshot[]; audit: AuditEvent[]; assessments: ImpactAssessment[]; failures: InspectionFailure[]; investigations: FailureInvestigation[]; supplierOf: (documentId?: string) => string; partNumber: string }): TimelineEvent[] {
   const out: TimelineEvent[] = [];
