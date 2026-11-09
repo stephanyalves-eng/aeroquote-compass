@@ -1,5 +1,7 @@
 import type { ExtractedQuote, RfqReference } from "./types";
 import { DEFAULT_INCOTERM_ADDERS } from "./rules";
+import type { FieldReviewStatus } from "./review-types";
+import { CRITICAL_FIELDS } from "./review-types";
 
 export const MAX_FILES = 20;
 export const FILE_TYPES = ["pdf", "xlsx", "xls", "csv", "txt"];
@@ -15,6 +17,7 @@ export interface QuoteDocument {
   original?: ExtractedQuote | undefined;
   reviewed?: ExtractedQuote | undefined;
   confirmed: boolean;
+  fieldStatus?: FieldReviewStatus;
 }
 export const newReference = (): RfqReference => ({
   rfqNumber: "", partNumber: "", revision: "", annualVolume: 12,
@@ -45,7 +48,7 @@ export function quoteErrors(q: ExtractedQuote): string[] {
   if (q.unit_price == null || !Number.isFinite(q.unit_price) || q.unit_price < 0) errors.push("A valid unit price is required.");
   for (const key of ["moq", "quantity_basis", "lead_time_days", "payment_terms_days", "warranty_months", "freight", "insurance", "duties", "other_adders"] as const) {
     const value = q[key];
-    if (value != null && (!Number.isFinite(value) || value < 0)) errors.push(`${key.replaceAll("_", " ")} must be a non-negative number.`);
+    if (value != null && (!Number.isFinite(value) || value < 0)) errors.push(`${REVIEW_FIELDS.find((f) => f.key === key)?.label ?? "Value"} must be a non-negative number.`);
   }
   if (q.price_breaks.some((x) => !Number.isFinite(x.min_qty) || x.min_qty < 0 || !Number.isFinite(x.unit_price) || x.unit_price < 0)) errors.push("Invalid price break.");
   if (q.one_time_costs.some((x) => !Number.isFinite(x.amount) || x.amount < 0 || (x.currency != null && !["USD", "EUR", "BRL"].includes(x.currency)))) errors.push("Invalid one-time cost.");
@@ -59,7 +62,7 @@ export function averageConfidence(q: ExtractedQuote): number | null {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
 export function canCompare(documents: QuoteDocument[], ref: RfqReference) {
-  return referenceErrors(ref).length === 0 && documents.length > 0 && documents.every((d) => d.confirmed && d.reviewed && quoteErrors(d.reviewed).length === 0 && d.status === "Extracted");
+  return referenceErrors(ref).length === 0 && documents.length > 0 && documents.every((d) => d.confirmed && d.reviewed && quoteErrors(d.reviewed).length === 0 && d.status === "Extracted" && (d.fieldStatus == null || CRITICAL_FIELDS.every((key) => d.fieldStatus?.[key]?.confirmed)));
 }
 /** Local calendar date (YYYY-MM-DD), not UTC: after 21:00 in Brazil UTC is already tomorrow. */
 export function localToday(): string {
@@ -85,14 +88,14 @@ export const REVIEW_FIELDS: { key: keyof ExtractedQuote; label: string; kind: "t
   { key: "unit_price", label: "Unit price", kind: "number" },
   { key: "moq", label: "MOQ", kind: "number" },
   { key: "quantity_basis", label: "Annual volume", kind: "number" },
-  { key: "price_breaks", label: "Price breaks (JSON)", kind: "json" },
+  { key: "price_breaks", label: "Price breaks", kind: "json" },
   { key: "lead_time_days", label: "Lead time (days)", kind: "number" },
   { key: "incoterm", label: "Incoterm", kind: "text" },
   { key: "incoterm_place", label: "Incoterm place", kind: "text" },
   { key: "payment_terms_days", label: "Payment terms (days)", kind: "number" },
   { key: "quote_date", label: "Quote date", kind: "text" },
   { key: "validity_end_date", label: "Quote validity", kind: "text" },
-  { key: "one_time_costs", label: "Tooling / NRE / FAI (JSON)", kind: "json" },
+  { key: "one_time_costs", label: "Tooling / NRE / FAI", kind: "json" },
   { key: "freight", label: "Annual freight (quote currency)", kind: "number" },
   { key: "insurance", label: "Annual insurance (quote currency)", kind: "number" },
   { key: "duties", label: "Annual duties (quote currency)", kind: "number" },
