@@ -8,6 +8,7 @@ import { buildLandedCostBreakdown, SOURCE_LABELS } from "./landed-cost";
 import { classifyEligibility, ELIGIBILITY_LABELS } from "./eligibility";
 
 const value = (x: unknown): string => humanValue(x);
+const yesNo = (b: boolean): string => (b ? "Yes" : "No");
 const round2 = (n: number | null): number | null => n == null ? null : Math.round(n * 100) / 100;
 const usd = (n: number | null | undefined): string => n == null ? "Not provided" : n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 const score1 = (n: number | null | undefined): string => n == null ? "Not provided" : n.toFixed(1);
@@ -43,12 +44,8 @@ export function csvText(list: Intelligence[], ref?: RfqReference, weights?: Weig
   const safe = (x: unknown) => { const s = value(x); return `"${(/^[=+\-@\t\r]/.test(s) ? "'" + s : s).replaceAll('"', '""')}"`; };
   return [keys.map(safe).join(","), ...rows.map((r) => keys.map((k) => safe(r[k])).join(","))].join("\r\n");
 }
-export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intelligence[], ref: RfqReference, weights: Weights) {
-  const filename = (ref.rfqNumber || "RFQ").replace(/[^a-zA-Z0-9_-]/g, "_");
-  if (format === "csv") {
-    const url = URL.createObjectURL(new Blob(["\uFEFF", csvText(list, ref, weights)], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a"); link.href = url; link.download = `${filename}-analysis.csv`; link.click(); URL.revokeObjectURL(url); return;
-  }
+
+function analysisContext(list: Intelligence[], ref: RfqReference, weights: Weights) {
   const insights = decisionInsights(list, ref);
   const explanation = explainRecommendation(list, ref, weights);
   const explanationRows = [
@@ -60,9 +57,13 @@ export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intel
     ...explanation.perSupplier.flatMap((p) => p.reasons.map((r) => [`${p.supplier.name} | ${REASON_LABELS[r.category]}`, r.text])),
   ];
   const breakdowns = list.map((a) => ({ a, b: buildLandedCostBreakdown(a, { reference: ref }) }));
-  if (format === "xlsx") {
-    const X = await import("xlsx"); const wb = X.utils.book_new();
-    const add = (name: string, rows: object[]) => X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows), name);
+  return { insights, explanation, explanationRows, breakdowns };
+}
+/** Every Excel sheet of the analysis export, keyed by sheet name. Pure, so the content can be scanned in tests. */
+export function analysisSheets(list: Intelligence[], ref: RfqReference, weights: Weights): Record<string, object[]> {
+  const { insights, explanationRows, breakdowns } = analysisContext(list, ref, weights);
+  const sheets: Record<string, object[]> = {};
+  const add = (name: string, rows: object[]) => { sheets[name] = rows; };
     add("RFQ Data", Object.entries(ref).map(([Field, v]) => ({ Field: REF_LABELS[Field] ?? "RFQ information", Value: refValue(Field, v) })));
     add("Supplier Data", list.flatMap((a) => REVIEW_FIELDS.map((f) => ({ Supplier: a.name, Field: f.label, "Original extraction": humanValue(a.document.original?.[f.key]), "Reviewed quotation": humanValue(a.document.reviewed?.[f.key]) }))));
     add("Normalized Cost Data", exportRows(list, ref, weights));
@@ -71,6 +72,37 @@ export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intel
     add("Recommendation", [{ Supplier: insights.recommended?.name ?? "No eligible supplier", "Savings USD": round2(insights.savings), "Baseline": insights.baselineLabel, "Annual landed USD": round2(insights.recommended?.annualLanded ?? null), Why: insights.why ?? "Not provided" }]);
     add("Decision Explanation", explanationRows.map(([Metric, Value]) => ({ Metric, Value })));
     add("Landed Cost Breakdown", breakdowns.flatMap<object>(({ a, b }) => b.validationErrors.length ? b.validationErrors.map((Error) => ({ Supplier: a.name, Error })) : b.components.map((c) => ({ Supplier: a.name, Component: c.label, "Original amount": c.amountOriginal, Currency: c.currencyOriginal, "FX to USD": c.fxRate, "Amount USD": round2(c.amountUsd), Source: SOURCE_LABELS[c.source], Treatment: c.note, Formula: c.formula }))));
+  return sheets;
+}
+/** Every table of the analysis PDF (chart page excluded) as ASCII-safe strings. */
+export function analysisPdfTables(list: Intelligence[], ref: RfqReference, weights: Weights): { title: string; head: string[]; rows: string[][] }[] {
+  const { insights, explanationRows, breakdowns } = analysisContext(list, ref, weights);
+  const out: { title: string; head: string[]; rows: string[][] }[] = [];
+  const table = (title: string, head: string[], rows: string[][]) => { out.push({ title: ascii(title), head: head.map(ascii), rows: rows.map((r) => r.map(ascii)) }); };
+  table("RFQ Information", ["Field", "Value"], Object.entries(ref).map(([k, v]) => [REF_LABELS[k] ?? "RFQ information", refValue(k, v)]));
+  table("Supplier Comparison | USD", ["Supplier", "Original price", "Annual material", "Annual landed", "Overall score", "Risk"], list.map((a) => [a.name, `${a.baseline.quote.currency} ${value(a.baseline.quote.unit_price)}`, usd(a.material), `${usd(a.annualLanded)}${a.estimated ? " (Estimated)" : ""}${a.incomplete ? " (Incomplete)" : ""}`, score1(a.score), a.risk]));
+  table("Supplier Score | Transparent Contributions", ["Supplier", "Criterion", "Weight", "Score", "Contribution", "Formula"], list.flatMap((a) => a.contributions.map((c) => [a.name, CRITERIA[c.key], `${weights[c.key]}%`, score1(c.value), score1(c.weighted), c.reason])));
+  table("Risk Assessment & Quote Anomalies", ["Supplier", "Risk", "Severity", "Observation"], list.flatMap((a) => a.anomalies.map((x) => [a.name, a.risk, x.critical ? "Critical" : "Warning", x.message])));
+  table("Procurement Recommendation & Decision Impact", ["Metric", "Value"], [
+    ["Recommended supplier", insights.recommended?.name ?? "No eligible supplier"], ["Overall score", score1(insights.recommended?.score)], ["Annual landed cost USD", usd(insights.recommended?.annualLanded)],
+    ["Potential savings USD", usd(insights.savings)], ["Savings baseline", insights.baselineLabel], ["Cost difference vs lowest quote USD", usd(insights.difference)],
+    ["Why this supplier?", insights.why ?? "Resolve critical / incomplete data before an award recommendation."],
+    ["Key trade-offs", insights.recommended ? `Cost premium vs lowest quote: USD ${usd(insights.difference)}; lead time: ${days(insights.recommended.baseline.quote.lead_time_days)}; payment terms: ${days(insights.recommended.baseline.quote.payment_terms_days)}; risk: ${insights.recommended.risk}; estimated logistics: ${insights.recommended.estimated}.` : "Not provided"],
+  ]);
+  table("Recommendation Explanation", ["Metric / supplier", "Explanation"], explanationRows);
+  for (const { a, b } of breakdowns) { table(`${a.name} | Landed Cost Breakdown`, ["Component", "Original value", "FX to USD", "USD", "Source", "Treatment / note", "Formula"], b.validationErrors.length ? b.validationErrors.map((e) => ["Calculation blocked", e, "", "", "", "", ""]) : b.components.map((c) => [c.label, `${c.currencyOriginal} ${usd(c.amountOriginal)}`, c.fxRate.toFixed(6), usd(c.amountUsd), SOURCE_LABELS[c.source], c.note, c.formula])); }
+  return out;
+}
+export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intelligence[], ref: RfqReference, weights: Weights) {
+  const filename = (ref.rfqNumber || "RFQ").replace(/[^a-zA-Z0-9_-]/g, "_");
+  if (format === "csv") {
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csvText(list, ref, weights)], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = `${filename}-analysis.csv`; link.click(); URL.revokeObjectURL(url); return;
+  }
+  const insights = decisionInsights(list, ref);
+  if (format === "xlsx") {
+    const X = await import("xlsx"); const wb = X.utils.book_new();
+    for (const [name, rows] of Object.entries(analysisSheets(list, ref, weights))) X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows), name);
     X.writeFile(wb, `${filename}-analysis.xlsx`); return;
   }
   const { jsPDF } = await import("jspdf"); const { default: autoTable } = await import("jspdf-autotable");
@@ -87,21 +119,13 @@ export async function exportAnalysis(format: "csv" | "xlsx" | "pdf", list: Intel
   const finish = () => { for (let p = 1; p <= totalPages(); p++) { pdf.setPage(p); pdf.setFontSize(7); pdf.setTextColor(...ink); pdf.text("Stephany Alves · SIGNAL & STRUCTURE · Synthetic data", 14, 205); } };
   const band = (title: string) => { pdf.setFillColor(...forest); pdf.rect(0, 0, 297, 16, "F"); pdf.setTextColor(...ivory); pdf.setFontSize(10); pdf.text("AeroQuote Compass", 14, 10.5); pdf.setTextColor(...ink); pdf.setFontSize(16); pdf.text(ascii(title), 14, 28); };
   const table = (title: string, head: string[], rows: string[][]) => { band(title); autoTable(pdf, { startY: 35, head: [head.map(ascii)], body: rows.map((r) => r.map(ascii)), styles: { fontSize: 8, textColor: ink, lineColor: line, lineWidth: 0.1 }, headStyles: { fillColor: sunken, textColor: ink }, theme: "grid" }); };
-  table("RFQ Information", ["Field", "Value"], Object.entries(ref).map(([k, v]) => [REF_LABELS[k] ?? "RFQ information", refValue(k, v)]));
-  pdf.addPage(); table("Supplier Comparison | USD", ["Supplier", "Original price", "Annual material", "Annual landed", "Overall score", "Risk"], list.map((a) => [a.name, `${a.baseline.quote.currency} ${value(a.baseline.quote.unit_price)}`, usd(a.material), `${usd(a.annualLanded)}${a.estimated ? " (Estimated)" : ""}${a.incomplete ? " (Incomplete)" : ""}`, score1(a.score), a.risk]));
+  const tables = analysisPdfTables(list, ref, weights);
+  const [first, ...rest] = tables;
+  if (first) table(first.title, first.head, first.rows);
   pdf.addPage(); band("Annual Landed Cost by Supplier | USD");
   const max = Math.max(...list.map((a) => a.annualLanded ?? 0), 1);
   list.forEach((a, i) => { const y = 44 + i * 7; pdf.setFontSize(9); pdf.setTextColor(...ink); pdf.text(ascii(a.name.slice(0, 35)), 14, y); pdf.setFillColor(...(a.name === insights.recommended?.name ? signal : series)); pdf.rect(85, y - 4, Math.max(0.5, (a.annualLanded ?? 0) / max * 140), 4, "F"); pdf.text(usd(a.annualLanded), 230, y); });
-  pdf.addPage(); table("Supplier Score | Transparent Contributions", ["Supplier", "Criterion", "Weight", "Score", "Contribution", "Formula"], list.flatMap((a) => a.contributions.map((c) => [a.name, CRITERIA[c.key], `${weights[c.key]}%`, score1(c.value), score1(c.weighted), c.reason])));
-  pdf.addPage(); table("Risk Assessment & Quote Anomalies", ["Supplier", "Risk", "Severity", "Observation"], list.flatMap((a) => a.anomalies.map((x) => [a.name, a.risk, x.critical ? "Critical" : "Warning", x.message])));
-  pdf.addPage(); table("Procurement Recommendation & Decision Impact", ["Metric", "Value"], [
-    ["Recommended supplier", insights.recommended?.name ?? "No eligible supplier"], ["Overall score", score1(insights.recommended?.score)], ["Annual landed cost USD", usd(insights.recommended?.annualLanded)],
-    ["Potential savings USD", usd(insights.savings)], ["Savings baseline", insights.baselineLabel], ["Cost difference vs lowest quote USD", usd(insights.difference)],
-    ["Why this supplier?", insights.why ?? "Resolve critical / incomplete data before an award recommendation."],
-    ["Key trade-offs", insights.recommended ? `Cost premium vs lowest quote: USD ${usd(insights.difference)}; lead time: ${days(insights.recommended.baseline.quote.lead_time_days)}; payment terms: ${days(insights.recommended.baseline.quote.payment_terms_days)}; risk: ${insights.recommended.risk}; estimated logistics: ${insights.recommended.estimated}.` : "Not provided"],
-  ]);
-  pdf.addPage(); table("Recommendation Explanation", ["Metric / supplier", "Explanation"], explanationRows);
-  for (const { a, b } of breakdowns) { pdf.addPage(); table(`${a.name} | Landed Cost Breakdown`, ["Component", "Original value", "FX to USD", "USD", "Source", "Treatment / note", "Formula"], b.validationErrors.length ? b.validationErrors.map((e) => ["Calculation blocked", e, "", "", "", "", ""]) : b.components.map((c) => [c.label, `${c.currencyOriginal} ${usd(c.amountOriginal)}`, c.fxRate.toFixed(6), usd(c.amountUsd), SOURCE_LABELS[c.source], c.note, c.formula])); }
+  for (const t of rest) { pdf.addPage(); table(t.title, t.head, t.rows); }
   finish();
   pdf.save(`${filename}-analysis.pdf`);
 }
