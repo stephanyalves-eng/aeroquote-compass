@@ -61,7 +61,7 @@ function Index() {
   const restoreField = (id: string, field: ReviewField) => { const d = documents.find((x) => x.id === id); if (!d?.original || !d.reviewed) return; patch(id, restoreReviewField(d, field, new Date().toISOString())); record({ action: "Field restored", documentId: id, field, previousValue: d.reviewed[field], newValue: d.original[field] }); setStatus("Draft"); };
   const loadSamples = () => {
     setAuditEvents([]);
-    setReference((r) => ({ ...r, rfqNumber: "RFQ-24410", partNumber: "PN-45Y1258", revision: "C", annualVolume: 12, description: "Hydraulic actuator Y8", category: "Hydraulic systems", requiredDeliveryDate: "2027-03-15", deliveryLocation: "São José dos Campos", incumbentSupplier: "Meridian Flight Components LLC", targetCost: null }));
+    setReference((r) => ({ ...r, today: "2026-10-25", demoAnalysis: true, rfqNumber: "RFQ-24410", partNumber: "PN-45Y1258", revision: "C", annualVolume: 12, description: "Hydraulic actuator Y8", category: "Hydraulic systems", requiredDeliveryDate: "2027-03-15", deliveryLocation: "São José dos Campos", incumbentSupplier: "Meridian Flight Components LLC", targetCost: null }));
     setDocuments(SAMPLE_QUOTES.map((text, i) => ({ id: crypto.randomUUID(), text, fileName: ["atlas-quote.txt", "helix-quote.txt", "polar-quote.txt", "meridian-quote.txt"][i] ?? `sample-${i}.txt`, fileType: "txt", status: "Ready", confirmed: false })));
     setStep(1); setHistory(false); setStatus("Draft"); setSavedId(undefined); setNotice("");
   };
@@ -69,6 +69,7 @@ function Index() {
     if (processing.current || documents.some((d) => d.status === "Uploading")) return;
     const capacity = MAX_FILES - documents.length;
     if (incoming.length > capacity) { setNotice(`A maximum of ${MAX_FILES} files is allowed per RFQ. No files added.`); return; }
+    setReference((r) => ({ ...r, today: localToday(), demoAnalysis: false }));
     const added: QuoteDocument[] = incoming.map((f) => ({ id: crypto.randomUUID(), text: "", fileName: f.name, fileType: f.name.split(".").pop()?.toLowerCase() ?? "", status: "Uploading", confirmed: false }));
     setDocuments((ds) => [...ds, ...added]); setNotice(""); setStatus("Draft");
     await Promise.all(incoming.map(async (f, i) => { const d = added[i]; if (!d) return; try { const content = await readQuoteFile(f); patch(d.id, { ...content, status: "Ready" }); } catch (e) { patch(d.id, { status: "Error", error: e instanceof Error ? e.message : "Corrupted file." }); } }));
@@ -122,6 +123,7 @@ function Index() {
       {notice && <div role="status" className="rounded-sm border border-border bg-muted px-4 py-3 text-sm">{notice}</div>}
       {history ? <History onOpen={open} /> : <>
         <div className="flex flex-wrap items-center justify-between gap-4"><div><p className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-text-tertiary">Sourcing workspace</p><h2 className="mt-1 text-4xl font-medium tracking-[-0.02em]">{steps[step]}</h2></div><Button variant="outline" size="sm" onClick={loadSamples} disabled={busy}>Load sample quotes</Button></div>
+        {reference.demoAnalysis && <p className="text-sm text-text-secondary">Demo analysis date (synthetic): {reference.today}</p>}
         {step === 0 && <Setup reference={reference} onChange={(r) => { setReference(r); if (status !== "Draft") setStatus("Draft"); }} />}
         {step === 1 && <Uploads documents={documents} busy={busy} onFiles={files} onPaste={(text) => { if (documents.length < MAX_FILES) setDocuments([...documents, { id: crypto.randomUUID(), text, fileName: `pasted-quote-${documents.length + 1}.txt`, fileType: "txt", status: "Ready", confirmed: false }]); }} onRemove={(id) => { setDocuments((ds) => ds.filter((d) => d.id !== id)); setStatus("Draft"); }} onProcess={(id) => process(id)} onName={(id, name) => { const d = documents.find((x) => x.id === id); if (d?.reviewed) edit(id, { ...d.reviewed, supplier_name: name }); }} />}
         {step === 2 && <Review documents={documents} reference={reference} onEdit={edit} onFieldConfirm={confirmField} onFollowUp={followUp} onBulkConfirm={bulkConfirm} onReset={restoreField} onConfirm={(id) => { const d = documents.find((x) => x.id === id); if (d && !quotationConfirmationErrors(d).length) { patch(id, { confirmed: true, status: "Extracted" }); record({ action: "Quotation confirmed", documentId: id, newValue: d.reviewed }); } }} />}
