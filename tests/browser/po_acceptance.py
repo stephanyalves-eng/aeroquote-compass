@@ -32,10 +32,11 @@ async def main():
     async def status():
       m = STATUS.search(await pg.get_by_role("heading", name="Purchase Order Check", exact=True).locator("xpath=ancestor::section[1]").inner_text()); return next((x for x in STATUSES if m and x.lower() == m.group(0).lower()), None)  # badges render uppercase
     await pg.goto(URL, wait_until="networkidle")
-    await btn("Load extended sample (20 quotes)").click(); await btn("Validate sample quotes (demo)").click()
-    await btn("Compare & Decide").last.click()
+    await pg.get_by_role("button", name=re.compile("Extended sample")).click(); await btn("Validate sample quotes (demo)").click()
+    await btn("Continue to compare").click()
+    await btn("Continue to decision").click()
     await btn("Record decision").first.click(); await btn("Approve decision").click()
-    await pg.get_by_role("button", name="Continue to PO Check").click()
+    await pg.get_by_role("button", name="Continue to PO & Release").click()
     await pg.get_by_role("heading", name="Purchase Order Check", exact=True).wait_for()
     release = btn("Release purchase")
     accepted_labels = []; po_numbers = set()
@@ -86,7 +87,7 @@ async def main():
     await pg.get_by_label("Load demo PO").select_option("Non-critical discrepancy"); await btn("Load demo PO").click(); await pg.wait_for_timeout(300)
     check("reloaded PO starts without acceptances", await status() == "PO with discrepancies" and await release.is_disabled())
 
-    await pg.get_by_role("button", name="Audit Trail").first.click(); await pg.wait_for_timeout(500)
+    await btn("Traceability").click(); await pg.get_by_role("menuitem", name="Audit trail", exact=True).click(); await pg.wait_for_timeout(500)
     t = await main_text(); await pg.screenshot(path=str(SHOTS / "audit.png"))
     entries = [l for l in t.split("\n") if f"Justification: {JUST}" in l]
     check("audit trail has one 'PO discrepancy accepted' entry per acceptance", t.count("PO discrepancy accepted") >= len(accepted_labels) and len(entries) == len(accepted_labels), f"{len(entries)} vs {len(accepted_labels)}")
