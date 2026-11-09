@@ -7,7 +7,7 @@ export function normalizeSupplierName(name: string | null | undefined, sourceTex
   if (!name) return { name: null, isFictitious };
 
   const cleaned = name
-    .replace(/\([^()]*\b(?:fictitious|fictional|fict[ií]ci[oa]s?)\b[^()]*\)|\[[^\[\]]*\b(?:fictitious|fictional|fict[ií]ci[oa]s?)\b[^\[\]]*\]/giu, "")
+    .replace(/\([^()]*\b(?:fictitious|fictional|fict[ií]ci[oa]s?)\b[^()]*\)|\[[^[\]]*\b(?:fictitious|fictional|fict[ií]ci[oa]s?)\b[^[\]]*\]/giu, "")
     .replace(markerPattern, "")
     .replace(/\s+/g, " ")
     .trim();
