@@ -53,7 +53,7 @@ async def main():
   await btn('Create amendment').click();await btn('Confirm amend').click();assert await pg.get_by_text('Draft · Revision 2',exact=True).is_visible();assert await btn('Release purchase').is_disabled()
   assert await pg.get_by_role('region',name='Supplier confirmation',exact=True).get_by_text('Not yet recorded',exact=True).is_visible()
   await btn('PO list').click();await pg.get_by_label('PO RFQ').select_option('RFQ-24410');await pg.get_by_label('PO status').select_option('Superseded');assert await btn('Open PO').count()==1
-  await btn('Open PO').click();assert await pg.get_by_text('Superseded PO',exact=True).is_visible();assert await pg.get_by_role('article',name='Purchase order document').get_by_text('2027-03-20',exact=True).is_visible()
+  await btn('Open PO').click();assert await pg.get_by_text('Superseded PO',exact=True).is_visible();await pg.get_by_role('article',name='Purchase order document').get_by_text('2027-03-20',exact=True).wait_for()
   for w in [320,360,390,430,768,1024,1280,1440]:
    await pg.set_viewport_size({'width':w,'height':1800});await pg.wait_for_timeout(80)
    
@@ -64,7 +64,7 @@ async def main():
    await btn('Save RFQ').click();await pg.get_by_text('Saved',exact=True).first.wait_for();await pg.set_viewport_size({'width':1280,'height':1800});await btn('RFQ History').click()
    card=pg.locator('article').filter(has=pg.get_by_role('heading',name='RFQ-24410',exact=True)).first
    await card.get_by_role('button',name='Open saved RFQ',exact=True).click();await btn('Purchase Orders').click();assert await pg.get_by_text('Draft · Revision 2',exact=True).is_visible();await btn('PO list').click();await pg.get_by_label('PO status').select_option('Superseded');assert await btn('Open PO').count()==1
-   await btn('Open PO').click();assert await pg.get_by_role('article',name='Purchase order document').get_by_text('2027-03-20',exact=True).is_visible();await pg.set_viewport_size({'width':390,'height':1800});await pg.get_by_role('article',name='Purchase order document').scroll_into_view_if_needed();await pg.screenshot(path='/tmp/browser/erp-po/mobile.png')
+   await btn('Open PO').click();await pg.get_by_role('article',name='Purchase order document').get_by_text('2027-03-20',exact=True).wait_for();await pg.set_viewport_size({'width':390,'height':1800});await pg.get_by_role('article',name='Purchase order document').scroll_into_view_if_needed();await pg.screenshot(path='/tmp/browser/erp-po/mobile.png')
   await pg.set_viewport_size({'width':1280,'height':1800});await btn('PO workflow').click();await pg.get_by_label('Load demo PO',exact=True).select_option('Blocked PO');await btn('Load demo PO').click()
   assert await btn('Release purchase').is_disabled()
   events=await pg.evaluate('window.__testPoEvents');blocked=[e for e in events if e['name']=='project.po_blocked'];assert len(blocked)==1 and blocked[0]['properties']['reason']=='verification' and blocked[0]['properties']['blockers']>0,events
