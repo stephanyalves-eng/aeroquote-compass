@@ -147,3 +147,7 @@ export function releasePurchase(state: PoState, approved: boolean): PoState {
   return {...state,released:true};
 }
 export function loadAndCheckPo(po: PurchaseOrder,c: ApprovedPoContext,tolerances:PoTolerances):PoState { return {po:structuredClone(po),result:checkPurchaseOrder(po,c,tolerances),tolerances:{...tolerances},resolutions:[],released:false}; }
+/** Audit-event payload for a buyer resolution of a PO discrepancy (id, timestamp and actor are added by createAuditEvent). */
+export function poResolutionAudit(result: PoCheckResult, po: PurchaseOrder | undefined, itemId: string, action: PoResolution["action"], justification: string) {
+  return { action: action === "accepted" ? "PO discrepancy accepted" : "PO correction requested", justification, details: { check: result.items.find((i) => i.id === itemId)?.fieldLabel, poNumber: po?.poNumber } };
+}
