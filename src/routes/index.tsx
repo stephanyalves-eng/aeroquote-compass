@@ -22,6 +22,8 @@ import type { AuditEvent, ReviewField } from "@/lib/rfq/review-types";
 import { confirmReviewFields, editReviewDocument, quotationConfirmationErrors, reliableFields, sameReviewValue, restoreReviewField, toggleReviewFollowUp, procurementStages } from "@/lib/rfq/review-issues";
 import { REVIEW_FIELDS } from "@/lib/rfq/workflow";
 import { supabase } from "@/integrations/supabase/client";
+import { createApprovedDecision, explainRecommendation, type ApprovedDecision } from "@/lib/rfq/recommendation";
+import { buildLandedCostBreakdown } from "@/lib/rfq/landed-cost";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [
@@ -42,6 +44,8 @@ function Index() {
   const [notice, setNotice] = useState(""); const [status, setStatus] = useState<RfqStatus>("Draft");
   const [savedId, setSavedId] = useState<string | undefined>();
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [approvedDecision, setApprovedDecision] = useState<ApprovedDecision>();
+  useEffect(() => { setApprovedDecision(undefined); }, [documents, reference, weights]);
   const record = (event: Omit<AuditEvent, "id" | "timestamp" | "actor">) => setAuditEvents((events) => [...events, createAuditEvent({ ...event, id: crypto.randomUUID(), timestamp: new Date().toISOString() })]);
   const [saving, setSaving] = useState(false);
   const extract = useServerFn(extractQuote); const save = useServerFn(saveHistory);
@@ -49,6 +53,18 @@ function Index() {
   const validReference = referenceErrors(reference).length === 0;
   const ready = canCompare(documents, reference);
   const results = useMemo(() => ready ? compareDocuments(documents, reference, weights) : [], [documents, reference, weights, ready]);
+  const recordDecision = (id: string, justification: string) => {
+    try {
+      const decision = createApprovedDecision(results, reference, weights, id, justification, `${reference.today}T12:00:00.000Z`);
+      const explanation = explainRecommendation(results, reference, weights);
+      setApprovedDecision(decision);
+      record({ action: "Weights used", details: { weights: { ...weights } } });
+      for (const a of results) { const b = buildLandedCostBreakdown(a, { reference }); record({ action: "Landed-cost formula and assumptions", documentId: a.document.id, details: { formula: b.formula, components: b.components, total: b.annualTotal } }); }
+      record({ action: "Recommended supplier", documentId: explanation.recommended?.document.id, newValue: explanation.recommended?.name, details: { factors: explanation.winFactors, robustness: explanation.robustness } });
+      record({ action: "Final decision", documentId: id, newValue: decision });
+      if (decision.override) record({ action: "Recommendation override", documentId: id, justification: decision.justification, previousValue: decision.recommendedSupplier, newValue: decision.supplier });
+    } catch (e) { setNotice(e instanceof Error ? e.message : "Could not record this decision."); }
+  };
   const patch = (id: string, update: Partial<QuoteDocument>) => setDocuments((ds) => ds.map((d) => d.id === id ? { ...d, ...update } : d));
   const edit = (id: string, q: ExtractedQuote) => {
     const d = documents.find((x) => x.id === id); if (!d?.reviewed) return;
@@ -108,17 +124,17 @@ function Index() {
     setSaving(true);
     try {
       const insight = decisionInsights(results, reference);
-      const snapshot: Snapshot = { reference, documents, weights, auditEvents, summary: { supplier: insight.recommended?.name ?? null, landed: insight.recommended?.annualLanded ?? null, savings: insight.savings } };
+      const snapshot: Snapshot = { reference, documents, weights, auditEvents, ...(approvedDecision ? { approvedDecision } : {}), summary: { supplier: insight.recommended?.name ?? null, landed: insight.recommended?.annualLanded ?? null, savings: insight.savings } };
       const result = await save({ data: { ...(savedId ? { id: savedId } : {}), rfqNumber: reference.rfqNumber, partNumber: reference.partNumber, status, snapshot: JSON.stringify(snapshot) } });
       setSavedId(result.id); setNotice("RFQ analysis saved privately.");
     } catch (e) { setNotice(e instanceof Error ? e.message : "Could not save this analysis."); } finally { setSaving(false); }
   };
-  const open = (id: string, snapshot: Snapshot, storedStatus: RfqStatus) => { setAuditEvents(snapshot.auditEvents ?? []); setReference(snapshot.reference); setDocuments(snapshot.documents); setWeights(snapshot.weights); setStatus(storedStatus); setSavedId(id); setHistory(false); setStep(canCompare(snapshot.documents, snapshot.reference) ? 3 : 0); setNotice(""); };
+  const open = (id: string, snapshot: Snapshot, storedStatus: RfqStatus) => { setAuditEvents(snapshot.auditEvents ?? []); setReference(snapshot.reference); setDocuments(snapshot.documents); setWeights(snapshot.weights); setStatus(storedStatus); setSavedId(id); setHistory(false); setStep(canCompare(snapshot.documents, snapshot.reference) ? 3 : 0); setNotice(""); setTimeout(() => setApprovedDecision(snapshot.approvedDecision), 0); };
   return <div className="min-h-screen bg-background text-foreground">
     <header className="bg-surface-inverse text-text-inverse"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-5 py-5 sm:px-8"><div className="flex items-center gap-3"><SaMonogram height={32} /><span aria-hidden="true" className="h-8 w-px bg-text-inverse/30" /><div><h1 className="text-xl font-medium">AeroQuote Compass</h1><p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.08em] text-text-inverse/70">Strategic Procurement · Supplier Quotation Intelligence</p></div></div><div className="flex gap-2"><Button variant="ghost" className="text-text-inverse hover:bg-text-inverse/10 hover:text-text-inverse" disabled={busy} onClick={() => { setHistory(!history); setNotice(""); }}><HistoryIcon strokeWidth={1.5} />RFQ History</Button><Button variant="ghost" className="text-text-inverse hover:bg-text-inverse/10 hover:text-text-inverse" disabled={busy} onClick={() => { setAuditEvents([]); setReference({ ...newReference(), today: localToday() }); setDocuments([]); setSavedId(undefined); setStep(0); setHistory(false); setStatus("Draft"); setNotice(""); }}><Plus strokeWidth={1.5} />New RFQ</Button></div></div></header>
     <div className="border-b border-border-default bg-surface-raised"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-8"><div className="flex items-center gap-3"><span className="font-mono text-xs">{reference.rfqNumber || "NEW RFQ"}</span><Status>{status}</Status></div><div className="flex items-center gap-2"><select aria-label="RFQ status" className={`${control} py-1 text-xs`} value={status} disabled={busy || (!ready && status === "Draft")} onChange={(e) => setStatus(e.target.value as RfqStatus)}>{["Draft", "Analyzing", "Completed", "Under Negotiation", "Awarded"].map((x) => <option key={x} disabled={x !== "Draft" && x !== "Analyzing" && !ready}>{x}</option>)}</select><Button variant="outline" size="sm" disabled={saving || busy} onClick={saveCurrent}><Save />{saving ? "Saving…" : "Save RFQ"}</Button></div></div></div>
     {!history && <nav aria-label="Analysis steps" className="mx-auto grid max-w-7xl grid-cols-2 border-b border-border-default px-5 sm:grid-cols-4 sm:px-8">{steps.map((label, i) => <Button key={label} variant="ghost" disabled={busy || (i === 3 && !ready)} onClick={() => { setStep(i); setNotice(""); }} className={`h-auto justify-start rounded-none border-b-2 px-2 py-5 text-xs sm:text-sm ${step === i ? "border-action-primary font-medium text-foreground" : "border-transparent text-text-tertiary"}`}><span className="flex items-center gap-1.5 font-mono text-[11px] tracking-[0.08em]">{step === i && <span aria-hidden="true" className="inline-block size-1.5 bg-signal" />}0{i}</span>{label}{i < step && <Check className="size-3 text-success" strokeWidth={1.5} />}</Button>)}</nav>}
-    {!history && <ol aria-label="Procurement stages" className="mx-auto grid max-w-7xl grid-cols-2 gap-3 border-b border-border-subtle px-5 py-4 sm:grid-cols-4 sm:px-8 lg:grid-cols-8">{procurementStages(documents, step, busy).map(({ label, status: stageStatus }, i) => <li key={label} className={`min-w-0 text-xs ${stageStatus === "Later phase" ? "text-text-tertiary" : stageStatus === "Confirmed" || stageStatus === "Available" ? "text-success" : stageStatus === "In review" ? "text-warning" : "text-text-secondary"}`}><span className="font-mono text-[11px] uppercase tracking-[0.08em]">{i + 1} · {stageStatus}</span><p className="mt-1">{label}</p></li>)}</ol>}
+    {!history && <ol aria-label="Procurement stages" className="mx-auto grid max-w-7xl grid-cols-2 gap-3 border-b border-border-subtle px-5 py-4 sm:grid-cols-4 sm:px-8 lg:grid-cols-8">{procurementStages(documents, step, busy, Boolean(approvedDecision)).map(({ label, status: stageStatus }, i) => <li key={label} className={`min-w-0 text-xs ${stageStatus === "Later phase" ? "text-text-tertiary" : stageStatus === "Confirmed" || stageStatus === "Available" ? "text-success" : stageStatus === "In review" ? "text-warning" : "text-text-secondary"}`}><span className="font-mono text-[11px] uppercase tracking-[0.08em]">{i + 1} · {stageStatus}</span><p className="mt-1">{label}</p></li>)}</ol>}
     <main className="mx-auto max-w-7xl space-y-8 px-5 py-8 sm:px-8">
       {notice && <div role="status" className="rounded-sm border border-border bg-muted px-4 py-3 text-sm">{notice}</div>}
       {history ? <History onOpen={open} /> : <>
@@ -127,7 +143,7 @@ function Index() {
         {step === 0 && <Setup reference={reference} onChange={(r) => { setReference(r); if (status !== "Draft") setStatus("Draft"); }} />}
         {step === 1 && <Uploads documents={documents} busy={busy} onFiles={files} onPaste={(text) => { if (documents.length < MAX_FILES) setDocuments([...documents, { id: crypto.randomUUID(), text, fileName: `pasted-quote-${documents.length + 1}.txt`, fileType: "txt", status: "Ready", confirmed: false }]); }} onRemove={(id) => { setDocuments((ds) => ds.filter((d) => d.id !== id)); setStatus("Draft"); }} onProcess={(id) => process(id)} onName={(id, name) => { const d = documents.find((x) => x.id === id); if (d?.reviewed) edit(id, { ...d.reviewed, supplier_name: name }); }} />}
         {step === 2 && <Review documents={documents} reference={reference} onEdit={edit} onFieldConfirm={confirmField} onFollowUp={followUp} onBulkConfirm={bulkConfirm} onReset={restoreField} onConfirm={(id) => { const d = documents.find((x) => x.id === id); if (d && !quotationConfirmationErrors(d).length) { patch(id, { confirmed: true, status: "Extracted" }); record({ action: "Quotation confirmed", documentId: id, newValue: d.reviewed }); } }} />}
-        {step === 3 && ready && <Dashboard list={results} reference={reference} weights={weights} onWeights={setWeights} />}
+        {step === 3 && ready && <Dashboard list={results} reference={reference} weights={weights} onWeights={setWeights} approvedDecision={approvedDecision} onRecord={recordDecision} />}
         <div className="flex flex-wrap items-center justify-between gap-4"><Button variant="outline" disabled={busy || step === 0} onClick={() => setStep(step - 1)}><ArrowLeft />Back</Button><div className="flex items-center gap-3">{step === 2 && <span className="text-xs text-muted-foreground">{documents.filter((d) => d.confirmed).length} / {documents.length} quotations confirmed</span>}{step === 0 && <Button onClick={() => { if (validReference) setStep(1); else setNotice(referenceErrors(reference).join(" ")); }}>Continue to upload<ArrowRight /></Button>}{step === 1 && <Button disabled={busy || !documents.length || documents.some((d) => d.status === "Uploading")} onClick={() => process()}>{busy ? "Extracting quotations…" : "Extract quotations"}<ArrowRight /></Button>}{step === 2 && <Button disabled={!ready || busy} onClick={() => { setStep(3); setStatus("Completed"); }}>Compare & Decide<ArrowRight /></Button>}</div></div>
       </>}
     </main><footer className="border-t border-border-default"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-6 sm:px-8"><div className="flex items-center gap-3"><SaMonogram color="#0B302B" height={20} /><span className="font-serif text-lg font-light">Stephany Alves</span><span aria-hidden="true" className="h-5 w-px bg-border-strong/40" /><span className="font-mono text-[11px] uppercase tracking-[0.08em] text-text-tertiary">Signal &amp; Structure</span></div><div className="space-y-1 text-xs text-text-tertiary sm:text-right"><p className="font-medium text-foreground">AI extracts. Code calculates. You decide.</p><p>Synthetic sample data for portfolio purposes. No real company data.</p><p className="font-serif text-sm italic">Complexity, made clear.</p></div></div></footer>
