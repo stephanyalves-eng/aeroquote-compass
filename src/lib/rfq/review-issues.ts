@@ -46,11 +46,13 @@ export function reviewIssues(documents: QuoteDocument[], ref: RfqReference): Rev
       const value = q[f.key], confidence = d.original.confidence?.[f.key] ?? null, confirmed = fieldConfirmed(d, f.key);
       const add = (kind: ReviewIssue["kind"], reason: string, expectedAction: string) => issues.push({ id: `${d.id}:${f.key}:${kind}`, documentId: d.id, supplier: normalizeSupplierName(q.supplier_name, d.text).name ?? "Not provided", fileName: d.fileName, field: { key: f.key, label: f.label }, originalValue: d.original?.[f.key], reviewedValue: value, confidence, kind, reason, expectedAction, followUp: d.fieldStatus?.[f.key]?.followUp ?? false });
       const blocker = blockers.get(f.key);
-      if (blocker) { add("critical", blocker, invalid.has(f.key) ? "Correct the value before comparison." : "Confirm source accuracy or correct the quotation; resolve before award."); continue; }
+      if (blocker) add("critical", blocker, invalid.has(f.key) ? "Correct the value before comparison." : "Confirm source accuracy or correct the quotation; resolve before award.");
       // An individual confirmation acknowledges source accuracy, not award eligibility.
       if (confirmed) continue;
-      if (empty(value) && !optional.has(f.key)) { add("missing", `${f.label} is not provided.`, "Check the source; enter the value or confirm that it is not stated."); continue; }
-      if (confidence != null && confidence < LOW_CONFIDENCE_THRESHOLD) { add("low_confidence", `AI confidence is below ${LOW_CONFIDENCE_THRESHOLD}%.`, "Check against the source and individually confirm the value."); continue; }
+      const missing = empty(value) && !optional.has(f.key);
+      const lowConfidence = confidence != null && confidence < LOW_CONFIDENCE_THRESHOLD;
+      if (missing) add("missing", `${f.label} is not provided.`, "Check the source; enter the value or confirm that it is not stated.");
+      if (lowConfidence) add("low_confidence", `AI confidence is below ${LOW_CONFIDENCE_THRESHOLD}%.`, "Check against the source and individually confirm the value.");
       const reasons: string[] = [];
       if (!sameReviewValue(value, d.original[f.key])) reasons.push("Buyer-edited value has not been confirmed.");
       if (f.key === "currency" && q.currency && ref.currency && q.currency !== ref.currency) reasons.push(`Quotation uses ${q.currency}; RFQ uses ${ref.currency}.`);
@@ -63,7 +65,7 @@ export function reviewIssues(documents: QuoteDocument[], ref: RfqReference): Rev
         if (mode && mode[1] > (modes[1]?.[1] ?? 0) && String(value).trim().toUpperCase() !== mode[0]) reasons.push(`${f.label} differs from the most common value among received quotations (${mode[0]}, ${mode[1]} of ${values.length}).`);
       }
       if (reasons.length) add("divergence", reasons.join(" "), "Review the difference and confirm source accuracy, edit or flag for follow-up.");
-      else add("unconfirmed", CRITICAL_FIELDS.includes(f.key) ? "Critical field requires individual buyer confirmation." : "Value has not been confirmed.", "Confirm the value after checking the source.");
+      else if (!blocker && !missing && !lowConfidence) add("unconfirmed", CRITICAL_FIELDS.includes(f.key) ? "Critical field requires individual buyer confirmation." : "Value has not been confirmed.", "Confirm the value after checking the source.");
     }
   }
   return issues.sort((a, b) => order[a.kind] - order[b.kind] || a.supplier.localeCompare(b.supplier) || REVIEW_FIELDS.findIndex((f) => f.key === a.field.key) - REVIEW_FIELDS.findIndex((f) => f.key === b.field.key) || a.fileName.localeCompare(b.fileName));
