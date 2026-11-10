@@ -78,7 +78,7 @@ export function PoPanel({
   onRelease,
   onDraftDirty,
   configurationBlocked = false,
-}: Props) {
+}: Props & { actor?: string }) {
   const [scenario, setScenario] = useState<PoScenario>("Correct PO"),
     [accept, setAccept] = useState<PoCheckItem | null>(null),
     [justification, setJustification] = useState(""),

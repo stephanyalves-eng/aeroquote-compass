@@ -1982,6 +1982,7 @@ function Index() {
                 )}
                 {(step === 5 || step === 9) && (
                   <PoPanel
+                    actor={actor}
                     configurationBlocked={gateBlocked(gate)}
                     context={poContext}
                     state={poState}
@@ -2033,6 +2034,7 @@ function Index() {
                 )}
                 {(step === 3 || step === 4) && ready && (
                   <Dashboard
+                    actor={actor}
                     view={step === 3 ? "compare" : "decision"}
                     onSummary={exportSummary}
                     selected={selected}
