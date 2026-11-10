@@ -34,4 +34,4 @@
 - Supplier acknowledgements are append-only optional PoState records bound to the exact issued PO in po-confirmation.ts; they never overwrite contractual delivery or change release gates. Why: operational delivery updates must preserve issued evidence and historical versions.
 - Weekly recommendation-after-acknowledgement analytics fires in the confirmation handler and uses an RFQ audit milestone to deduplicate saved/reopened POs. Why: delivery corrections and amendments must not inflate RFQ counts.
 - Buyer events fire in quotation-confirmation handlers with pure gates and audit deduplication. Why: buyer/supplier milestones stay distinct.
-- Weekly charts use collector snapshots in weekly-recommendations.ts with coverage/update dates. Why: no runtime read API; unknown weeks are not zeros.
+- Weekly charts use aggregate Cloud RPCs, audit-ID deduplication, a retry outbox and polling. Why: live totals without private data; unknown weeks stay null.

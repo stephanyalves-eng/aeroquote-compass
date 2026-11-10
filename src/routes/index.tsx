@@ -1,6 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState, useRef } from "react";
+import { useQueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { weeklyRecommendationsQuery } from "@/lib/rfq/weekly-recommendations-query";
+import { WEEKLY_RECOMMENDATION_SNAPSHOT } from "@/lib/rfq/weekly-recommendations";
+import { syncWeeklyRecommendations } from "@/lib/rfq/weekly-recommendations-sync";
 import { ArrowRight, ArrowLeft, Save, Undo2 } from "lucide-react";
 import { DemoData, BulkConfirmDialog } from "@/components/rfq/shell";
 import {
@@ -149,6 +153,17 @@ const initialInvestigations = () =>
   CASES.map((c) => investigateFailure(c.failure, c.snapshots, c.registry, c.manufacturedOn));
 
 export const Route = createFileRoute("/")({
+  loader: async ({ context }) => {
+    try {
+      await context.queryClient.ensureQueryData(weeklyRecommendationsQuery);
+    } catch {
+      context.queryClient.setQueryData(weeklyRecommendationsQuery.queryKey, {
+        ...WEEKLY_RECOMMENDATION_SNAPSHOT,
+        unavailable: true,
+      });
+    }
+    return { weeklyState: dehydrate(context.queryClient) };
+  },
   head: () => ({
     meta: [
       { title: "AeroQuote Compass — Strategic Procurement Intelligence" },
@@ -167,10 +182,20 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Index,
+  component: HydratedIndex,
 });
+function HydratedIndex() {
+  const { weeklyState } = Route.useLoaderData();
+  return (
+    <HydrationBoundary state={weeklyState}>
+      <Index />
+    </HydrationBoundary>
+  );
+}
 const steps: string[] = [...MAIN_STEPS.map((m) => m.label), ...TRACEABILITY];
 function Index() {
+  const queryClient = useQueryClient();
+  const metricInFlight = useRef(false);
   const [reference, setReference] = useState(newReference);
   const [documents, setDocuments] = useState<QuoteDocument[]>([]);
   const [weights, setWeights] = useState({ ...DEFAULT_WEIGHTS });
@@ -271,6 +296,46 @@ function Index() {
           : new Date().toISOString(),
       }),
     ]);
+  const measureBuyerRecommendation = (next: QuoteDocument[]) => {
+    if (
+      metricInFlight.current ||
+      !shouldMeasureBuyerConfirmedRecommendation(next, reference, weights, auditEvents)
+    )
+      return;
+    metricInFlight.current = true;
+    const milestone = createAuditEvent({
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      action: RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT,
+    });
+    setAuditEvents((events) => [...events, milestone]);
+    void syncWeeklyRecommendations({ id: milestone.id, synthetic: Boolean(reference.demoAnalysis) })
+      .then(() => queryClient.invalidateQueries({ queryKey: weeklyRecommendationsQuery.queryKey }))
+      .catch(() =>
+        setNotice(
+          "Weekly totals could not update. The confirmation is retained and will retry automatically.",
+        ),
+      );
+  };
+  useEffect(() => {
+    const retry = () => {
+      void syncWeeklyRecommendations()
+        .then((changed) => {
+          if (changed)
+            void queryClient.invalidateQueries({ queryKey: weeklyRecommendationsQuery.queryKey });
+        })
+        .catch(() => {
+          /* Retained in the retry outbox. */
+        });
+    };
+    retry();
+    const timer = window.setInterval(retry, 30_000);
+    window.addEventListener("online", retry);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("online", retry);
+    };
+  }, [queryClient]);
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "unsaved" | "failed">(
     "idle",
@@ -715,6 +780,7 @@ function Index() {
     setStatus("Draft");
   };
   const loadSamples = () => {
+    metricInFlight.current = false;
     setAuditEvents([]);
     resetConfiguration();
     setReference((r) => ({
@@ -777,14 +843,11 @@ function Index() {
   const validateSamples = () => {
     const next = confirmValidatedSamples(documents);
     setDocuments(next);
-    if (
-      shouldMeasureBuyerConfirmedRecommendation(next, reference, weights, auditEvents) &&
-      window.__lovableEvents?.track
-    ) {
+    if (shouldMeasureBuyerConfirmedRecommendation(next, reference, weights, auditEvents)) {
       window.__lovableEvents?.track?.("project.rfq_recommended_after_buyer_confirmation", {
         synthetic: Boolean(reference.demoAnalysis),
       });
-      record({ action: RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT });
+      measureBuyerRecommendation(next);
     }
     for (const d of next) {
       const sample = SAMPLE_CATALOG.find((x) => x.id === d.id);
@@ -989,6 +1052,19 @@ function Index() {
     }
   };
   const open = (id: string, snapshot: Snapshot, storedStatus: RfqStatus) => {
+    metricInFlight.current = false;
+    const metric = snapshot.auditEvents?.find(
+      (event) => event.action === RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT,
+    );
+    if (metric)
+      void syncWeeklyRecommendations({
+        id: metric.id,
+        synthetic: Boolean(snapshot.reference.demoAnalysis),
+      })
+        .then(() =>
+          queryClient.invalidateQueries({ queryKey: weeklyRecommendationsQuery.queryKey }),
+        )
+        .catch(() => setNotice("Weekly totals will retry automatically."));
     reopening.current = true;
     skipDirty.current = true;
     setSaveState("saved");
@@ -1316,6 +1392,7 @@ function Index() {
       ? ["Dashboard"]
       : [reference.rfqNumber || "New RFQ", viewLabel];
   const newRfq = () => {
+    metricInFlight.current = false;
     setAuditEvents([]);
     resetConfiguration();
     setReference({ ...newReference(), today: localToday() });
@@ -1598,8 +1675,7 @@ function Index() {
                             reference,
                             weights,
                             auditEvents,
-                          ) &&
-                          window.__lovableEvents?.track
+                          )
                         ) {
                           window.__lovableEvents?.track?.(
                             "project.rfq_recommended_after_buyer_confirmation",
@@ -1607,7 +1683,7 @@ function Index() {
                               synthetic: Boolean(reference.demoAnalysis),
                             },
                           );
-                          record({ action: RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT });
+                          measureBuyerRecommendation(next);
                         }
                         record({
                           action: "Quotation confirmed",
