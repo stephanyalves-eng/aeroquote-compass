@@ -343,14 +343,47 @@ function Index() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "unsaved" | "failed">(
     "idle",
   );
-  const skipDirty = useRef(true);
+  const fingerprint = useMemo(
+    () =>
+      workspaceFingerprint({
+        reference,
+        documents,
+        weights,
+        status,
+        approvedDecision,
+        poState,
+        registry,
+        snapshots,
+        assessments,
+        investigations,
+        auditEvents,
+      }),
+    [reference, documents, weights, status, approvedDecision, poState, registry, snapshots, assessments, investigations, auditEvents],
+  );
+  const [baseline, setBaseline] = useState<SaveBaseline>({ fingerprint: null, saved: false });
+  /** null = baseline settled; boolean = capture the next workspace state as baseline (true = saved). */
+  const rebaseline = useRef<boolean | null>(false);
+  const [baselineTick, setBaselineTick] = useState(0);
+  const resetBaseline = (saved: boolean) => {
+    rebaseline.current = saved;
+    setBaselineTick((t) => t + 1);
+  };
   useEffect(() => {
-    if (skipDirty.current) {
-      skipDirty.current = false;
-      return;
-    }
-    setSaveState((s) => (s === "saving" ? s : "unsaved"));
-  }, [documents, reference, weights, approvedDecision, poState, registry, assessments]);
+    if (rebaseline.current === null) return;
+    setBaseline({ fingerprint, saved: rebaseline.current });
+    rebaseline.current = null;
+  }, [fingerprint, baselineTick]);
+  const unsavedWork = hasUnsavedWork(fingerprint, baseline, poDraftDirty);
+  const workspaceStatus = workspaceSaveStatus(fingerprint, baseline, poDraftDirty);
+  useEffect(() => {
+    if (!unsavedWork) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [unsavedWork]);
   const extract = useServerFn(extractQuote);
   const save = useServerFn(saveHistory);
   useEffect(() => setReference((r) => ({ ...r, today: r.today || localToday() })), []);
@@ -827,7 +860,6 @@ function Index() {
     setSavedId(undefined);
     setNotice("");
     setUndoDocs(null);
-    skipDirty.current = true;
     setSaveState("idle");
   };
   const loadExtended = () => {
@@ -1073,8 +1105,8 @@ function Index() {
       });
       setSavedId(result.id);
       setNotice("");
-      setSaveState("saved");
-      skipDirty.current = true;
+      setSaveState("idle");
+      setBaseline({ fingerprint, saved: true });
     } catch (e) {
       setSaveState("failed");
       setNotice(e instanceof Error ? e.message : "Could not save this analysis.");
@@ -1097,8 +1129,8 @@ function Index() {
         )
         .catch(() => setNotice("Weekly totals will retry automatically."));
     reopening.current = true;
-    skipDirty.current = true;
-    setSaveState("saved");
+    setSaveState("idle");
+    resetBaseline(true);
     setAuditEvents(snapshot.auditEvents ?? []);
     setReference(snapshot.reference);
     setDocuments(snapshot.documents);
@@ -1407,9 +1439,7 @@ function Index() {
         ? "Saved"
         : saveState === "failed"
           ? "Save failed"
-          : saveState === "unsaved"
-            ? "Unsaved changes"
-            : "Not saved yet";
+          : SAVE_STATUS_LABEL[workspaceStatus];
   const plan = bulkTarget ? bulkConfirmPlan(documents, reference, bulkTarget.id) : null;
   const viewLabel =
     step === 9
@@ -1433,8 +1463,11 @@ function Index() {
     setHistory(false);
     setStatus("Draft");
     setNotice("");
-    skipDirty.current = true;
+    reopening.current = true;
+    setApprovedDecision(undefined);
+    setPoState(emptyPoState());
     setSaveState("idle");
+    resetBaseline(false);
   };
   const openHistory = () => {
     setHistory(!history);
@@ -1494,7 +1527,7 @@ function Index() {
                 <span
                   role="status"
                   aria-live="polite"
-                  className={`text-xs ${saveState === "failed" ? "text-error" : saveState === "unsaved" ? "text-warning" : saveState === "saved" ? "text-success" : "text-text-secondary"}`}
+                  className={`text-xs ${saveState === "failed" ? "text-error" : saveState === "saving" ? "text-text-secondary" : workspaceStatus === "unsaved" ? "text-warning" : workspaceStatus === "saved" ? "text-success" : "text-text-secondary"}`}
                 >
                   {saveLabel}
                 </span>
