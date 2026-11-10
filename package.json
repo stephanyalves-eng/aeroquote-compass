@@ -14,7 +14,11 @@
     "test:watch": "vitest"
   },
   "overrides": {
-    "rolldown": "1.2.1"
+    "rolldown": "1.2.1",
+    "seroval": "1.6.11",
+    "js-yaml": "4.3.2",
+    "source-map-js": "1.2.2",
+    "zod": "4.6.7"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.102",
@@ -75,7 +79,7 @@
     "vaul": "^1.1.2",
     "vite-tsconfig-paths": "^6.0.2",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",

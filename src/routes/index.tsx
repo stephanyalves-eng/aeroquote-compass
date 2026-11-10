@@ -30,6 +30,7 @@ import { pendingReviewBlockers } from "@/lib/rfq/presentation";
 import { SaMonogram } from "@/assets/sa-monogram";
 import { Button } from "@/components/ui/button";
 import { extractQuote } from "@/lib/rfq/extract.functions";
+import { extractionInput } from "@/lib/rfq/extraction-limits";
 import { saveHistory } from "@/lib/rfq/history.functions";
 import { SAMPLE_QUOTES } from "@/lib/rfq/samples";
 import {
@@ -941,22 +942,34 @@ function Index() {
     }
     processing.current = true;
     setBusy(true);
-    setStatus("Analyzing");
-    setNotice("");
     const queue = extractQueue(documents, id);
     let failed = false;
     try {
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth.user) {
+        setNotice("Sign in to extract quotations with AI. Demo data, comparison and exports remain public.");
+        setHistory(true);
+        return;
+      }
+      setStatus("Analyzing");
+      setNotice("");
       // Sequential requests avoid overwhelming the shared AI rate limit.
       for (const d of queue) {
         patch(d.id, { status: "Processing", confirmed: false, error: undefined });
         try {
+          const input = extractionInput.safeParse({
+            text: d.pdfBase64 ? undefined : d.text,
+            pdfBase64: d.pdfBase64,
+            today: reference.today,
+            fileName: d.fileName,
+          });
+          if (!input.success) {
+            patch(d.id, { status: "Error", error: "Provide quotation text up to 60,000 characters or a valid PDF up to 6 MB, with a valid analysis date." });
+            failed = true;
+            continue;
+          }
           const r = await extract({
-            data: {
-              text: d.text,
-              pdfBase64: d.pdfBase64,
-              today: reference.today,
-              fileName: d.fileName,
-            },
+            data: input.data,
           });
           if (!r.quote || r.error) {
             patch(d.id, { status: "Error", error: r.error ?? "Extraction failed." });
@@ -989,6 +1002,7 @@ function Index() {
         } catch {
           patch(d.id, { status: "Error", error: "Extraction failed. Reprocess this quotation." });
           failed = true;
+          break;
         }
       }
       if (failed)
