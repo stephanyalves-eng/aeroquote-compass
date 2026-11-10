@@ -1,11 +1,11 @@
 /** Pure save-state logic for the in-memory workspace (no React, no storage). */
 export interface WorkspaceParts {
-  reference: { today?: string };
+  reference: { today?: string; [key: string]: unknown } | { today?: string };
   [key: string]: unknown;
 }
 /** Stable fingerprint of user work. The analysis date is excluded: it is set automatically, not by the user. */
 export function workspaceFingerprint(parts: WorkspaceParts): string {
-  const { today: _today, ...reference } = parts.reference;
+  const { today: _today, ...reference } = parts.reference as { today?: string };
   return JSON.stringify({ ...parts, reference });
 }
 export type WorkspaceSaveStatus = "pristine" | "unsaved" | "saved";
