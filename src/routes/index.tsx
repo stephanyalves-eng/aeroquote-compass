@@ -24,6 +24,7 @@ import { requiresAttention } from "@/lib/rfq/operations";
 import { MAIN_STEPS, TRACEABILITY, TRACE_OFFSET } from "@/lib/rfq/navigation";
 import { ScenarioPanel } from "@/components/rfq/scenario-panel";
 import { OperationalPanel } from "@/components/rfq/operational-panel";
+import { firstInvalidField } from "@/lib/rfq/reference-fields";
 import { operationalSummary, scopeSyntheticEvidence } from "@/lib/rfq/operations";
 import { workspaceFingerprint, workspaceSaveStatus, hasUnsavedWork, SAVE_STATUS_LABEL, type SaveBaseline } from "@/lib/rfq/unsaved-work";
 import { bulkConfirmPlan } from "@/lib/rfq/bulk-confirm";
@@ -340,6 +341,7 @@ function Index() {
     };
   }, [queryClient]);
   const [saving, setSaving] = useState(false);
+  const [showSetupErrors, setShowSetupErrors] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "unsaved" | "failed">(
     "idle",
   );
@@ -1399,7 +1401,14 @@ function Index() {
           label: "Continue to quotes",
           run: () => {
             if (validReference) go(1);
-            else setNotice(referenceErrors(reference).join(" "));
+            else {
+              setNotice(referenceErrors(reference).join(" "));
+              setShowSetupErrors(true);
+              const first = firstInvalidField(reference);
+              requestAnimationFrame(() =>
+                document.querySelector<HTMLElement>(`[data-setup-field="${first}"][aria-invalid="true"]`)?.focus(),
+              );
+            }
           },
           reason: null,
         }
@@ -1464,6 +1473,7 @@ function Index() {
     setStatus("Draft");
     setNotice("");
     reopening.current = true;
+    setShowSetupErrors(false);
     setApprovedDecision(undefined);
     setPoState(emptyPoState());
     setSaveState("idle");
@@ -1659,6 +1669,7 @@ function Index() {
                 {step === 0 && (
                   <Setup
                     reference={reference}
+                    showErrors={showSetupErrors}
                     onChange={(r) => {
                       setReference(r);
                       if (status !== "Draft") setStatus("Draft");
