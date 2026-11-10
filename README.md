@@ -63,6 +63,7 @@ tests/browser/        Playwright end-to-end checks
 - AI extraction runs server-side and requires an authenticated user; inputs are validated with size limits (text, PDF size, output tokens).
 - Dashboard telemetry stores only random IDs and a demo flag; real (non-demo) milestones are accepted only from signed-in users.
 - CSV exports neutralise spreadsheet formula injection (cells starting with `=`, `+`, `-`, `@`).
+- When browser storage is blocked or full, sign-in, AI extraction, private history and telemetry delivery are unavailable; the demo, comparison and exports keep working in memory without initializing the sign-in library. An accessible explanation is shown, and unsaved work still triggers the leave-page warning.
 
 ## Accessibility & responsiveness
 
