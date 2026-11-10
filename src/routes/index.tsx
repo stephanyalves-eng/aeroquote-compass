@@ -42,7 +42,6 @@ import { extractionInput } from "@/lib/rfq/extraction-limits";
 import { saveHistory } from "@/lib/rfq/history.functions";
 import { SAMPLE_QUOTES } from "@/lib/rfq/samples";
 import {
-  newReference,
   referenceErrors,
   canCompare,
   MAX_FILES,
