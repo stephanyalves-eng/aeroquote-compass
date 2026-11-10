@@ -35,4 +35,4 @@
 - Weekly recommendation-after-acknowledgement analytics fires in the confirmation handler and uses an RFQ audit milestone to deduplicate saved/reopened POs. Why: delivery corrections and amendments must not inflate RFQ counts.
 - Buyer events fire in quotation-confirmation handlers with pure gates and audit deduplication. Why: buyer/supplier milestones stay distinct.
 - Weekly charts use aggregate Cloud RPCs, audit-ID deduplication, a retry outbox and polling. Why: live totals without private data; unknown weeks stay null.
-- Save state/leave warning use pure unsaved-work.ts; demo-only evidence counts via scopeSyntheticEvidence. Why: no false "Unsaved" or demo items in user RFQs.
+- Save state: pure unsaved-work.ts; demo evidence: scopeSyntheticEvidence. Why: testable.
