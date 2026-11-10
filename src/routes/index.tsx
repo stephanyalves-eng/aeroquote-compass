@@ -1519,7 +1519,7 @@ function Index() {
           busy={busy}
         />
         <div className="min-w-0 flex-1">
-          <div className="border-b border-border-default bg-surface-raised">
+          <div role="region" aria-label="Current RFQ" className="border-b border-border-default bg-surface-raised">
             <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2 sm:px-8">
               <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="font-mono text-xs">{reference.rfqNumber || "NEW RFQ"}</span>
