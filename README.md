@@ -25,7 +25,7 @@ Navigation is ERP-style, grouped as **Operate / Decide / Trace**.
 - **Supplier Comparison & Decisions** — landed-cost breakdown with sources and formulas, eligibility with reasons, recommendation explanation, what-if scenarios, and overrides that require a written justification.
 - **Purchase Orders & Release Control** — PO lifecycle (draft → issued → verified → released), PO Check against the approved decision with configurable tolerances, mandatory controls that block release, supplier acknowledgement, and PO document/PDF.
 - **Configuration** — drawing/specification revision control, immutable check snapshots, revision impact assessment and a configuration gate on release.
-- **Audit Trail** — human-readable timeline and an exportable **auditable decision summary** (PDF, Excel, CSV).
+- **Audit Trail** — human-readable timeline and an exportable **auditable decision summary** (PDF, Excel, CSV). New events are credited to the signed-in user (name or email); signed out, to the fictional demo buyer "Marina Costa (Demo buyer)". Earlier events keep their original author.
 - **Investigations** — failure investigation linked to the revisions and checks in force at manufacture.
 - **RFQ History** — private saved analyses (sign-in required), reopened with full state.
 - **Draft autosave** — the current workspace (RFQ setup, quotes, reviews, decision, PO, audit) is autosaved to this browser as a versioned draft and restored on return ("Draft restored · Discard"). The draft is cleared after saving to history or starting a New RFQ.
