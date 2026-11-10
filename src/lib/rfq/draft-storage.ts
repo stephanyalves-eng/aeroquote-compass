@@ -37,8 +37,16 @@ export function readDraft<W>(storage: StorageLike | null): DraftEnvelope<W> | nu
   try {
     const raw = storage.getItem(DRAFT_STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<DraftEnvelope<W>>;
-    if (parsed?.version !== DRAFT_SCHEMA_VERSION || !parsed.workspace || typeof parsed.workspace !== "object") return null;
+    let parsed: Partial<DraftEnvelope<W>> | null = null;
+    try {
+      parsed = JSON.parse(raw) as Partial<DraftEnvelope<W>>;
+    } catch {
+      parsed = null;
+    }
+    if (!parsed || typeof parsed !== "object" || parsed.version !== DRAFT_SCHEMA_VERSION || !parsed.workspace || typeof parsed.workspace !== "object") {
+      clearDraft(storage); // Corrupted, foreign or older draft: drop it so it is not re-read.
+      return null;
+    }
     return { version: parsed.version, savedAt: String(parsed.savedAt ?? ""), workspace: parsed.workspace };
   } catch {
     return null;
