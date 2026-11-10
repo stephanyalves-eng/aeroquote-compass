@@ -95,7 +95,12 @@ export function weeklyRecommendationRows(
       demo: tracked ? (counts?.demo ?? 0) : null,
       coverage: !tracked
         ? "Not tracked"
-        : week === current || (week === trackingWeek && (trackingDate !== week || new Date(snapshot.trackingStartedAt).toLocaleTimeString("en-GB", { timeZone: "America/Sao_Paulo" }) !== "00:00:00"))
+        : week === current ||
+            (week === trackingWeek &&
+              (trackingDate !== week ||
+                new Date(snapshot.trackingStartedAt).toLocaleTimeString("en-GB", {
+                  timeZone: "America/Sao_Paulo",
+                }) !== "00:00:00"))
           ? "Partial"
           : "Complete",
     });

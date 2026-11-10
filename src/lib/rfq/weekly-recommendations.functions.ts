@@ -15,28 +15,30 @@ const snapshotSchema = z.object({
     }),
   ),
 });
-export const readWeeklyRecommendations = createServerFn({ method: "GET" }).handler(async (): Promise<WeeklyRecommendationSnapshot & { unavailable: boolean }> => {
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"];
-  const url = process.env["SUPABASE_URL"];
-  if (!key || !url) throw new Error("Weekly totals are temporarily unavailable.");
-  const client = createClient<Database>(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: {
-      fetch: (input, init) => {
-        const headers = new Headers(init?.headers);
-        if (key.startsWith("sb_") && headers.get("Authorization") === `Bearer ${key}`)
-          headers.delete("Authorization");
-        headers.set("apikey", key);
-        return fetch(input, { ...init, headers });
+export const readWeeklyRecommendations = createServerFn({ method: "GET" }).handler(
+  async (): Promise<WeeklyRecommendationSnapshot & { unavailable: boolean }> => {
+    const key = process.env["SUPABASE_PUBLISHABLE_KEY"];
+    const url = process.env["SUPABASE_URL"];
+    if (!key || !url) throw new Error("Weekly totals are temporarily unavailable.");
+    const client = createClient<Database>(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        fetch: (input, init) => {
+          const headers = new Headers(init?.headers);
+          if (key.startsWith("sb_") && headers.get("Authorization") === `Bearer ${key}`)
+            headers.delete("Authorization");
+          headers.set("apikey", key);
+          return fetch(input, { ...init, headers });
+        },
       },
-    },
-  });
-  const { data, error } = await client.rpc("weekly_buyer_recommendations");
-  if (error) throw new Error("Weekly totals are temporarily unavailable.");
-  const snapshot = snapshotSchema.parse(data);
-  return {
-    ...snapshot,
-    unavailable: false,
-    weeks: snapshot.weeks.map((row) => ({ ...row, coverage: "Complete" as const })),
-  };
-});
+    });
+    const { data, error } = await client.rpc("weekly_buyer_recommendations");
+    if (error) throw new Error("Weekly totals are temporarily unavailable.");
+    const snapshot = snapshotSchema.parse(data);
+    return {
+      ...snapshot,
+      unavailable: false,
+      weeks: snapshot.weeks.map((row) => ({ ...row, coverage: "Complete" as const })),
+    };
+  },
+);
