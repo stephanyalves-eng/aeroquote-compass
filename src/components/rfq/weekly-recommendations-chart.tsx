@@ -124,7 +124,7 @@ export function WeeklyRecommendationsChart() {
           {mode === "real" ? "real" : "demo"} RFQs recommended · {totals.trackedWeeks} tracked weeks
         </span>
       </div>
-      <div className="mt-4 h-56 min-w-0" aria-hidden="true">
+      <div className="mt-4 h-56 min-w-0 overflow-hidden" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} margin={{ top: 12, right: 12, left: -20, bottom: 4 }}>
             <CartesianGrid stroke="var(--border-subtle)" vertical={false} />
