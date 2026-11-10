@@ -24,5 +24,5 @@ export const readWeeklyRecommendations = createServerFn({ method: "GET" }).handl
   const { data, error } = await client.rpc("weekly_buyer_recommendations");
   if (error) throw new Error("Weekly totals are temporarily unavailable.");
   const snapshot = snapshotSchema.parse(data);
-  return { ...snapshot, weeks: snapshot.weeks.map((row) => ({ ...row, coverage: "Complete" as const })) };
+  return { ...snapshot, unavailable: false, weeks: snapshot.weeks.map((row) => ({ ...row, coverage: "Complete" as const })) };
 });

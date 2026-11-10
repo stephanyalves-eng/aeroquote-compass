@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { weeklyRecommendationsQuery } from "@/lib/rfq/weekly-recommendations-query";
+import { WEEKLY_RECOMMENDATION_SNAPSHOT } from "@/lib/rfq/weekly-recommendations";
 import { syncWeeklyRecommendations } from "@/lib/rfq/weekly-recommendations-sync";
 import { ArrowRight, ArrowLeft, Save, Undo2 } from "lucide-react";
 import { DemoData, BulkConfirmDialog } from "@/components/rfq/shell";
@@ -155,7 +156,7 @@ export const Route = createFileRoute("/")({
   loader: async ({ context }) => {
     try { await context.queryClient.ensureQueryData(weeklyRecommendationsQuery); }
     catch { context.queryClient.setQueryData(weeklyRecommendationsQuery.queryKey, {
-      updatedAt: new Date().toISOString(), trackingStartedAt: new Date().toISOString(), weeks: [],
+      ...WEEKLY_RECOMMENDATION_SNAPSHOT, unavailable: true,
     }); }
   },
   head: () => ({

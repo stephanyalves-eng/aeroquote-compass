@@ -152,7 +152,7 @@ export function WeeklyRecommendationsChart() {
       </details>
       <p className="mt-4 text-xs text-text-tertiary">
         Updated {new Date(snapshot.updatedAt).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })} (São Paulo)
-        {isRefetchError ? " · Update unavailable; showing last received totals." : " · Automatic updates"}
+        {isRefetchError || snapshot.unavailable ? " · Update unavailable; showing last received totals." : " · Automatic updates"}
       </p>
     </section>
   );
