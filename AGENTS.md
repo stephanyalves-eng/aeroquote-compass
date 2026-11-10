@@ -36,3 +36,4 @@
 - Buyer events fire in quotation-confirmation handlers with pure gates and audit deduplication. Why: buyer/supplier milestones stay distinct.
 - Weekly charts use aggregate Cloud RPCs, audit-ID deduplication, a retry outbox and polling. Why: live totals without private data; unknown weeks stay null.
 - Save state: pure unsaved-work.ts; demo evidence: scopeSyntheticEvidence. Why: testable.
+- Screens are addressed by the `?view=` search param resolved in pure view-route.ts (gated deep links fall back with a reason); the workspace draft autosaves through draft-storage.ts (versioned, guarded storage); RFQ status suggestion and page eyebrow derive from the same erpProcessSteps tracker in rfq-status.ts. Why: one source for navigation, progress and persistence, testable outside components.

@@ -36,3 +36,4 @@
 - [x] Tests: accepting PO discrepancies for each demo PO (partial acceptance, justification, audit events, release eligibility)
 - [x] Browser tests: accepting PO discrepancies across all demo POs (partial, justification, audit entries, release)
 - [x] Leak scan of every text label on the PDF bar-chart page, with regression tests
+- [x] UX/UI owner pass A–G: draft autosave + restore/discard, `?view=` URLs with gated fallback, tracker-derived eyebrow and status with mismatch note, empty annual volume, Demo mode identity, weekly widget copy/range/empty state, dashboard getting-started, search no-results, demo replace confirmation on edits, Investigations empty state, two aria-prohibited-attr fixes. 407 tests; axe clean on all screens at 1440/390.

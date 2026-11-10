@@ -28,6 +28,9 @@ Navigation is ERP-style, grouped as **Operate / Decide / Trace**.
 - **Audit Trail** — human-readable timeline and an exportable **auditable decision summary** (PDF, Excel, CSV).
 - **Investigations** — failure investigation linked to the revisions and checks in force at manufacture.
 - **RFQ History** — private saved analyses (sign-in required), reopened with full state.
+- **Draft autosave** — the current workspace (RFQ setup, quotes, reviews, decision, PO, audit) is autosaved to this browser as a versioned draft and restored on return ("Draft restored · Discard"). The draft is cleared after saving to history or starting a New RFQ.
+- **Addressable screens** — every screen has its own URL (`/?view=quotations`, `/?view=decisions`, `/?view=purchase-orders`, …), so Back/Forward, refresh and deep links work. A link to a screen that is not available yet falls back to the nearest allowed screen with a short explanation.
+- **Consistent progress** — the page eyebrow and the RFQ status are both derived from the eight-stage process tracker; a manually chosen status that is ahead of the evidence shows an inline note.
 
 ## Tech stack
 
@@ -63,7 +66,7 @@ tests/browser/        Playwright end-to-end checks
 
 ## Accessibility & responsiveness
 
-Designed for keyboard and screen-reader use (labelled landmarks, form errors linked to their fields, focusable scroll regions, status always paired with a word, WCAG AA contrast) and responsive from 320 px phones to wide desktops without horizontal page scrolling. The app warns before leaving a page with unsaved work.
+Designed for keyboard and screen-reader use (labelled landmarks, form errors linked to their fields, focusable scroll regions, status always paired with a word, WCAG AA contrast) and responsive from 320 px phones to wide desktops without horizontal page scrolling. The app warns before leaving a page only when work could be lost (the browser draft could not be stored, or a PO form has unsaved edits).
 
 ## Author
 
