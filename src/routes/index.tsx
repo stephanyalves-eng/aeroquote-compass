@@ -1584,16 +1584,29 @@ function Index() {
                         patch(id, { confirmed: true, status: "Extracted", excluded: false });
                         const next = documents.map((quote) =>
                           quote.id === id
-                            ? { ...quote, confirmed: true, status: "Extracted" as const, excluded: false }
+                            ? {
+                                ...quote,
+                                confirmed: true,
+                                status: "Extracted" as const,
+                                excluded: false,
+                              }
                             : quote,
                         );
                         if (
-                          shouldMeasureBuyerConfirmedRecommendation(next, reference, weights, auditEvents) &&
+                          shouldMeasureBuyerConfirmedRecommendation(
+                            next,
+                            reference,
+                            weights,
+                            auditEvents,
+                          ) &&
                           window.__lovableEvents?.track
                         ) {
-                          window.__lovableEvents?.track?.("project.rfq_recommended_after_buyer_confirmation", {
-                            synthetic: Boolean(reference.demoAnalysis),
-                          });
+                          window.__lovableEvents?.track?.(
+                            "project.rfq_recommended_after_buyer_confirmation",
+                            {
+                              synthetic: Boolean(reference.demoAnalysis),
+                            },
+                          );
                           record({ action: RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT });
                         }
                         record({
