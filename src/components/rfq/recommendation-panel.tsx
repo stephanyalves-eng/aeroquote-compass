@@ -105,9 +105,9 @@ export function RecommendationPanel({
             <p className="font-mono text-[11px] uppercase text-text-inverse/70">Robustness</p>
             <p className="mt-2 flex items-center gap-2">
               {r ? explanation.robustness : "Not assessed"}
-              <span tabIndex={0} title={ROBUSTNESS_TOOLTIP} aria-label={ROBUSTNESS_TOOLTIP}>
-                <Info size={16} strokeWidth={1.5} />
-              </span>
+              <button type="button" className="rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring" title={ROBUSTNESS_TOOLTIP} aria-label={`How robustness is assessed: ${ROBUSTNESS_TOOLTIP}`}>
+                <Info size={16} strokeWidth={1.5} aria-hidden="true" />
+              </button>
             </p>
           </div>
         </div>
