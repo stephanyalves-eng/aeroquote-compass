@@ -3,10 +3,41 @@ import { reviewIssues, reviewSummary, reliableFields, confirmReviewFields, quota
 import { REVIEW_FIELDS, newReference, canCompare, quoteErrors, type QuoteDocument } from "./workflow";
 import type { ExtractedQuote } from "./types";
 import { createAuditEvent, DEMO_BUYER } from "./audit";
+import { setAllReviewFollowUp } from "./review-issues";
 const ref = { ...newReference(), rfqNumber: "RFQ-1", partNumber: "PN-1", revision: "C", today: "2026-10-25", requiredDeliveryDate: "2027-03-15" };
 const q: ExtractedQuote = { supplier_name: "Atlas Controls INC", quote_id: "Q1", quote_date: "2026-10-01", validity_end_date: "2027-01-01", part_number: "PN-1", revision: "C", unit_price: 100, currency: "USD", quantity_basis: 12, price_breaks: [], incoterm: "FCA", incoterm_place: "Miami", lead_time_days: 90, payment_terms_days: 60, one_time_costs: [], certifications: ["AS9100D"], fai_included: true, eccn: "9A991", warranty_months: 24, new_supplier_requires_qualification: false, surcharge_clause: null, notes: null, confidence: Object.fromEntries(REVIEW_FIELDS.map((f) => [f.key, 95])) };
 function doc(patch: Partial<ExtractedQuote> = {}, id = "a"): QuoteDocument { const value = { ...q, ...patch }; return { id, text: "FICTITIOUS", fileName: `${id}.txt`, fileType: "txt", status: "Needs Review", original: structuredClone(value), reviewed: structuredClone(value), confirmed: false, fieldStatus: {} }; }
 describe("Phase 1 deterministic review", () => {
+  it("flags every field without confirming fields or changing extracted values", () => {
+    const d = doc();
+    const flagged = setAllReviewFollowUp(d, true);
+    expect(REVIEW_FIELDS.every((f) => flagged.fieldStatus?.[f.key]?.followUp)).toBe(true);
+    expect(REVIEW_FIELDS.every((f) => !flagged.fieldStatus?.[f.key]?.confirmed)).toBe(true);
+    expect(flagged.original).toEqual(d.original);
+    expect(flagged.reviewed).toEqual(d.reviewed);
+    expect(flagged.confirmed).toBe(false);
+    expect(quotationConfirmationErrors(flagged)).toHaveLength(8);
+    expect(reliableFields(flagged, [flagged], ref)).toEqual([]);
+    expect(d.fieldStatus).toEqual({});
+  });
+  it("sets mixed flags consistently and clears them without removing confirmations", () => {
+    const d = confirmReviewFields(doc(), ["revision"]);
+    d.fieldStatus = { ...d.fieldStatus, eccn: { followUp: true } };
+    const flagged = setAllReviewFollowUp(d, true);
+    expect(setAllReviewFollowUp(flagged, true)).toEqual(flagged);
+    const cleared = setAllReviewFollowUp(flagged, false);
+    expect(REVIEW_FIELDS.every((f) => cleared.fieldStatus?.[f.key]?.followUp === false)).toBe(true);
+    expect(cleared.fieldStatus?.revision?.confirmed).toBe(true);
+    expect(cleared.fieldStatus?.unit_price?.confirmed).toBe(false);
+  });
+  it("preserves legacy confirmations and ignores incomplete extractions", () => {
+    const { fieldStatus, ...legacy } = doc();
+    const flagged = setAllReviewFollowUp({ ...legacy, confirmed: true, status: "Extracted" }, true);
+    expect(REVIEW_FIELDS.every((f) => flagged.fieldStatus?.[f.key]?.confirmed)).toBe(true);
+    expect(flagged.confirmed).toBe(true);
+    const incomplete = { ...doc(), original: undefined, reviewed: undefined };
+    expect(setAllReviewFollowUp(incomplete, true)).toBe(incomplete);
+  });
   it("exports the required confidence thresholds", () => { expect(LOW_CONFIDENCE_THRESHOLD).toBe(70); expect(BULK_CONFIRM_THRESHOLD).toBe(90); });
   it.each(["supplier_name", "part_number", "revision", "currency", "unit_price"] as const)("flags invalid %s as a comparison blocker", (key) => { const d = doc({ [key]: null }); expect(reviewIssues([d], ref).find((i) => i.field.key === key)?.kind).toBe("critical"); expect(quotationConfirmationErrors(d).length).toBeGreaterThan(0); });
   it.each([{ part_number: "OTHER" }, { revision: "B" }, { certifications: [] }, { validity_end_date: "2026-10-24" }])("retains award blockers after accuracy confirmation", (patch) => { const d = confirmReviewFields(doc(patch), CRITICAL_FIELDS); expect(quotationConfirmationErrors(d)).toEqual([]); expect(reviewIssues([d], ref).some((i) => i.kind === "critical" && i.reason.includes("Award"))).toBe(true); expect(canCompare([{ ...d, confirmed: true, status: "Extracted" }], ref)).toBe(true); });

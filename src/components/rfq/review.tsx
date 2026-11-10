@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, RotateCcw } from "lucide-react";
+import { Check, RotateCcw, Flag } from "lucide-react";
 import { Section, Supplier, Status, control } from "./primitives";
 import { REVIEW_FIELDS, confidenceLevel, quoteErrors, type QuoteDocument } from "@/lib/rfq/workflow";
 import type { ExtractedQuote, RfqReference } from "@/lib/rfq/types";
@@ -8,7 +8,7 @@ import { ReviewPending, type ReviewActions } from "./review-pending";
 import { fieldConfirmed, quotationConfirmationErrors, reviewInputId, LOW_CONFIDENCE_THRESHOLD, formatReviewValue } from "@/lib/rfq/review-issues";
 import { ReviewArray } from "./review-array";
 import type { ReviewField } from "@/lib/rfq/review-types";
-export function Review({ documents, reference, onEdit, onConfirm, onReset, ...actions }: ReviewActions & { documents: QuoteDocument[]; reference: RfqReference; onEdit: (id: string, q: ExtractedQuote) => void; onConfirm: (id: string) => void }) {
+export function Review({ documents, reference, onEdit, onConfirm, onReset, onAllFollowUp, ...actions }: ReviewActions & { documents: QuoteDocument[]; reference: RfqReference; onEdit: (id: string, q: ExtractedQuote) => void; onConfirm: (id: string) => void; onAllFollowUp: (id: string, flagged: boolean) => void }) {
   const [selected, setSelected] = useState<string | null>(null);
   const d = documents.find((x) => x.id === selected) ?? documents.find((x) => x.original);
   const [error, setError] = useState("");
@@ -19,9 +19,14 @@ export function Review({ documents, reference, onEdit, onConfirm, onReset, ...ac
   if (!d?.original || !d.reviewed) return <div className="space-y-6">{pending}<Section title="Review Extracted Data"><p className="text-sm text-muted-foreground">No extracted quotation available.</p></Section></div>;
   const q = d.reviewed;
   const confirmationErrors = quotationConfirmationErrors(d);
+  const allFlagged = REVIEW_FIELDS.every((field) => d.fieldStatus?.[field.key]?.followUp);
   return <div className="space-y-6">{pending}<Section title="Review Extracted Data" action={<div className="flex flex-wrap gap-2"><select className={control} value={d.id} aria-label="Quote to review" onChange={(e) => { setSelected(e.target.value); setError(""); }}>{documents.filter((x) => x.original).map((x) => <option key={x.id} value={x.id}>{x.fileName}</option>)}</select></div>}>
     <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_auto]"><div className="space-y-2"><Supplier name={q.supplier_name} source={d.text} /><div><Status>{d.confirmed ? "Buyer confirmed" : "Needs Review"}</Status></div></div><Button disabled={confirmationErrors.length > 0 || d.confirmed} onClick={() => { onConfirm(d.id); const next = documents.find((x) => x.id !== d.id && x.original && !x.confirmed); if (next) setSelected(next.id); }}><Check />Confirm quotation</Button></div>
     {confirmationErrors.length > 0 && <p className="text-xs text-warning">{confirmationErrors.join(" ")}</p>}
+    <div className="flex flex-wrap items-center gap-3">
+      <Button variant="outline" aria-pressed={allFlagged} onClick={() => onAllFollowUp(d.id, !allFlagged)}><Flag />{allFlagged ? "Clear all flags" : "Flag all fields"}</Button>
+      <span role="status" className="text-xs text-text-secondary">{REVIEW_FIELDS.filter((field) => d.fieldStatus?.[field.key]?.followUp).length} of {REVIEW_FIELDS.length} fields flagged for follow-up</span>
+    </div>
     <div className="review-fields"><table className="w-full text-left text-sm"><thead className="bg-surface-sunken"><tr>{["Field", "Original Quote Value", "Reviewed Value", "AI Confidence", "Field review"].map((x) => <th key={x} className="px-3 py-3 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-text-tertiary">{x}</th>)}</tr></thead><tbody>{REVIEW_FIELDS.map((f) => {
       const original = d.original?.[f.key]; const current = q[f.key]; const conf = d.original?.confidence?.[f.key];
       const display = formatReviewValue;

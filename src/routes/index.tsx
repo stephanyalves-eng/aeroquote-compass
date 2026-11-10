@@ -64,6 +64,7 @@ import {
   sameReviewValue,
   restoreReviewField,
   toggleReviewFollowUp,
+  setAllReviewFollowUp,
 } from "@/lib/rfq/review-issues";
 import { workflowStages } from "@/lib/rfq/workflow-stages";
 import { REVIEW_FIELDS } from "@/lib/rfq/workflow";
@@ -745,6 +746,15 @@ function Index() {
     });
   };
   const [bulkTarget, setBulkTarget] = useState<{ id?: string } | null>(null);
+  const allFollowUp = (id: string, flagged: boolean) => {
+    const d = documents.find((quote) => quote.id === id);
+    if (!d?.original || !d.reviewed) return;
+    patch(id, setAllReviewFollowUp(d, flagged));
+    for (const field of REVIEW_FIELDS) {
+      if (Boolean(d.fieldStatus?.[field.key]?.followUp) === flagged) continue;
+      record({ action: flagged ? "Follow-up flagged" : "Follow-up cleared", documentId: id, field: field.key, newValue: flagged });
+    }
+  };
   const [undoDocs, setUndoDocs] = useState<{ docs: QuoteDocument[]; count: number } | null>(null);
   const bulkConfirm = (id?: string) => {
     const before = documents;
@@ -1673,6 +1683,7 @@ function Index() {
                     onEdit={edit}
                     onFieldConfirm={confirmField}
                     onFollowUp={followUp}
+                    onAllFollowUp={allFollowUp}
                     onBulkConfirm={(id) => setBulkTarget(id ? { id } : {})}
                     onReset={restoreField}
                     onConfirm={(id) => {
