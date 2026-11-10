@@ -107,3 +107,45 @@ export function weeklyRecommendationRows(
   }
   return { rows, error: null };
 }
+
+/** Compare adjacent, equally sized whole-week windows, never unknown history against zero. */
+export function weeklyRecommendationComparison(
+  snapshot: WeeklyRecommendationSnapshot,
+  start: string,
+  end: string,
+  mode: "real" | "demo",
+) {
+  const selected = weeklyRecommendationRows(snapshot, start, end);
+  if (selected.error || selected.rows.length === 0) return null;
+  const first = selected.rows[0];
+  const last = selected.rows.at(-1);
+  if (!first || !last) return null;
+  const shift = (date: string, days: number) =>
+    new Date(Date.parse(`${date}T12:00:00Z`) + days * DAY).toISOString().slice(0, 10);
+  const previousRange = {
+    start: shift(first.week, -selected.rows.length * 7),
+    end: shift(first.week, -1),
+  };
+  const previous = weeklyRecommendationRows(snapshot, previousRange.start, previousRange.end);
+  const total = (rows: WeeklyRecommendationRow[]) =>
+    rows.some((row) => row.coverage === "Not tracked" || row[mode] === null)
+      ? null
+      : rows.reduce((sum, row) => sum + (row[mode] ?? 0), 0);
+  const currentTotal = total(selected.rows);
+  const previousTotal = total(previous.rows);
+  const difference =
+    currentTotal === null || previousTotal === null ? null : currentTotal - previousTotal;
+  return {
+    selectedRange: { start: first.week, end: shift(last.week, 6) },
+    previousRange,
+    currentTotal,
+    previousTotal,
+    difference,
+    percentage:
+      difference === null || previousTotal === null || previousTotal === 0
+        ? null
+        : (difference / previousTotal) * 100,
+    partial: [...selected.rows, ...previous.rows].some((row) => row.coverage === "Partial"),
+    weeks: selected.rows.length,
+  };
+}
