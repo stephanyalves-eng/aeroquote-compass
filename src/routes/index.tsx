@@ -163,7 +163,7 @@ const initialInvestigations = () =>
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>): { view?: string } =>
-    typeof search.view === "string" && search.view ? { view: search.view } : {},
+    typeof search["view"] === "string" && search["view"] ? { view: search["view"] } : {},
   loader: async ({ context }) => {
     try {
       await context.queryClient.ensureQueryData(weeklyRecommendationsQuery);
@@ -195,6 +195,20 @@ export const Route = createFileRoute("/")({
   }),
   component: HydratedIndex,
 });
+interface DraftWorkspace {
+  reference: Snapshot["reference"];
+  documents: QuoteDocument[];
+  weights?: Snapshot["weights"];
+  status?: RfqStatus | null;
+  approvedDecision?: ApprovedDecision;
+  poState?: PoState;
+  registry?: DocumentRevision[];
+  snapshots?: ConfigurationSnapshot[];
+  assessments?: ImpactAssessment[];
+  investigations?: FailureInvestigation[];
+  auditEvents?: AuditEvent[];
+  savedId?: string;
+}
 function HydratedIndex() {
   const { weeklyState } = Route.useLoaderData();
   return (
@@ -399,11 +413,11 @@ function Index() {
   const workspaceUnsaved = hasUnsavedWork(fingerprint, baseline);
   // Restore a locally stored draft once, after hydration.
   useEffect(() => {
-    const draft = readDraft<Record<string, any>>(browserStorage());
+    const draft = readDraft<DraftWorkspace>(browserStorage());
     const w = draft?.workspace;
     if (w?.reference && Array.isArray(w.documents)) {
       reopening.current = true;
-      setReference(reviveReferenceNumbers(w.reference));
+      setReference(reviveReferenceNumbers(w.reference as unknown as Record<string, unknown>) as unknown as typeof w.reference);
       setDocuments(w.documents);
       if (w.weights) setWeights(w.weights);
       setStatus(w.status ?? null);
@@ -444,7 +458,7 @@ function Index() {
     let active = true;
     const apply = (u: { email?: string | null; user_metadata?: Record<string, unknown> } | null | undefined) => {
       if (!active) return;
-      setUser(u ? { email: u.email ?? null, name: typeof u.user_metadata?.full_name === "string" ? u.user_metadata.full_name : null } : null);
+      setUser(u ? { email: u.email ?? null, name: typeof u.user_metadata?.["full_name"] === "string" ? (u.user_metadata["full_name"] as string) : null } : null);
     };
     void supabase.auth.getSession().then(({ data }) => apply(data.session?.user));
     const { data } = supabase.auth.onAuthStateChange((_e, session) => apply(session?.user));

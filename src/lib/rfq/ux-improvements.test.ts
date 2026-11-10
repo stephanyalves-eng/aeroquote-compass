@@ -38,8 +38,8 @@ describe("draft persistence", () => {
   });
   it("restores blank numeric RFQ inputs as not entered", () => {
     const r = reviveReferenceNumbers({ annualVolume: null, usdBrl: 5, eurBrl: 6, incotermAdders: { EXW: null, FCA: 1 } } as Record<string, unknown>);
-    expect(Number.isNaN(r.annualVolume)).toBe(true);
-    expect(Number.isNaN((r.incotermAdders as Record<string, number>).EXW)).toBe(true);
+    expect(Number.isNaN(r["annualVolume"])).toBe(true);
+    expect(Number.isNaN((r["incotermAdders"] as Record<string, number>)["EXW"])).toBe(true);
   });
   it("warns before leaving only when the latest work is not stored", () => {
     expect(shouldWarnBeforeUnload({ unsaved: true, poFormDirty: false, current: "a", storedFingerprint: "a" })).toBe(false);
@@ -99,7 +99,7 @@ describe("RFQ status and progress labels", () => {
 describe("new RFQ defaults and identity", () => {
   it("starts annual volume empty and requires it", () => {
     const r = blankRfqReference();
-    expect(Number.isNaN(r.annualVolume)).toBe(true);
+    expect(Number.isNaN(r["annualVolume"])).toBe(true);
     expect(referenceErrors(r)).toContain("Annual volume must be a positive whole number.");
   });
   it("shows Demo mode when signed out and the user when signed in", () => {

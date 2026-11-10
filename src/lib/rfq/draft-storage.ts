@@ -55,9 +55,9 @@ export function clearDraft(storage: StorageLike | null): void {
 export function reviveReferenceNumbers<R extends Record<string, unknown>>(reference: R): R {
   const out: Record<string, unknown> = { ...reference };
   for (const key of ["annualVolume", "usdBrl", "eurBrl"]) if (out[key] === null || out[key] === undefined) out[key] = Number.NaN;
-  const adders = out.incotermAdders as Record<string, unknown> | undefined;
+  const adders = out["incotermAdders"] as Record<string, unknown> | undefined;
   if (adders && typeof adders === "object")
-    out.incotermAdders = Object.fromEntries(Object.entries(adders).map(([k, v]) => [k, v === null ? Number.NaN : v]));
+    out["incotermAdders"] = Object.fromEntries(Object.entries(adders).map(([k, v]) => [k, v === null ? Number.NaN : v]));
   return out as R;
 }
 /**
