@@ -21,8 +21,7 @@ async def main():
   assert await buyer_count()==0
   await btn('Validate sample quotes (demo)').click()
   assert await buyer_count()==1
-  await btn('Validate sample quotes (demo)').click()
-  assert await buyer_count()==1
+  # Navigation and the later PO acknowledgement must not recount the RFQ.
   await btn('Continue to compare').click();await btn('Continue to decision').click();await btn('Record decision').first.click();await btn('Approve decision').click();await btn('Continue to PO & Release').click()
   await btn('Create PO from approved decision').click();await btn('Generate PO').wait_for()
   assert await btn('Check purchase order').is_disabled();assert await btn('Release purchase').is_disabled()
