@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { outboxAction } from "./telemetry-outbox";
 const KEY = "aeroquote-weekly-recommendations-outbox";
 interface Milestone {
   id: string;
@@ -38,7 +39,12 @@ export async function syncWeeklyRecommendations(milestone?: Milestone) {
       p_milestone_id: row.id,
       p_synthetic: row.synthetic,
     });
-    if (error)
+    const action = outboxAction(error, row);
+    if (action === "drop") {
+      store(pending().filter((item) => item.id !== row.id));
+      continue;
+    }
+    if (action === "retry")
       throw new Error(
         "Weekly totals could not update. The confirmation is retained and will retry automatically.",
       );
