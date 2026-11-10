@@ -460,11 +460,18 @@ function Index() {
       if (!active) return;
       setUser(u ? { email: u.email ?? null, name: typeof u.user_metadata?.["full_name"] === "string" ? (u.user_metadata["full_name"] as string) : null } : null);
     };
-    void supabase.auth.getSession().then(({ data }) => apply(data.session?.user));
-    const { data } = supabase.auth.onAuthStateChange((_e, session) => apply(session?.user));
+    // Blocked browser storage makes the auth client throw on creation: stay signed out and keep working in memory.
+    let unsubscribe = () => {};
+    try {
+      void supabase.auth.getSession().then(({ data }) => apply(data.session?.user)).catch(() => apply(null));
+      const { data } = supabase.auth.onAuthStateChange((_e, session) => apply(session?.user));
+      unsubscribe = () => data.subscription.unsubscribe();
+    } catch {
+      apply(null);
+    }
     return () => {
       active = false;
-      data.subscription.unsubscribe();
+      unsubscribe();
     };
   }, []);
   const warnOnLeave = shouldWarnBeforeUnload({
