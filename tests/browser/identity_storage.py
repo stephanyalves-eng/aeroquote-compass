@@ -16,8 +16,8 @@ async def fresh(b, w, init=None):
     ctx = await b.new_context(viewport={"width": w, "height": 1800})
     await ctx.route("**/auth/v1/**", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(USER)))
     page = await ctx.new_page(); errs = []
-    # The sign-in library itself reports one uncaught error when getItem throws; it does not affect the app.
-    page.on("pageerror", lambda e: None if "supabase" in (e.stack or "") else errs.append(str(e)))
+    page.on("pageerror", lambda e: errs.append("page: " + str(e)))
+    page.on("console", lambda m: errs.append("console: " + m.text) if m.type == "error" else None)
     page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
     if init: await page.add_init_script(init)  # localhost-only test pages; no real credentials
     return ctx, page, errs
@@ -68,6 +68,13 @@ async def main():
                 await page.locator('[data-setup-field="rfqNumber"]').fill("RFQ-MEM-1"); await page.wait_for_timeout(1200)
                 kept = await page.locator('[data-setup-field="rfqNumber"]').input_value() == "RFQ-MEM-1"
                 check(f"{w} {name}: pristine load, works in memory, warns on unsaved", pristine and no_warn and kept and await warns(page) and not errs, errs[:2])
+                await page.goto(B + "/?view=history", wait_until="networkidle")
+                message = "Your browser is blocking site storage, so sign-in is unavailable. The demo, comparison and exports keep working."
+                check(f"{w} {name}: History explanation visible", await page.get_by_text(message, exact=True).is_visible())
+                check(f"{w} {name}: sign-in buttons hidden", await page.get_by_role("button", name="Continue with Google").count() == 0 and await page.get_by_role("button", name="Continue with Lovable").count() == 0)
+                check(f"{w} {name}: zero console/page errors", not errs, errs[:2])
+                check(f"{w} {name}: no horizontal overflow", await overflow(page) <= 0)
+                await page.screenshot(path=f"/tmp/browser/blocked-storage/{w}-{name.replace(' ', '-').replace('/', '-')}.png")
                 await ctx.close()
             for name, raw in [("corrupted JSON", "{not json"), ("older schema", json.dumps({"version": 0, "savedAt": "t", "workspace": {"reference": {"rfqNumber": "OLD"}}}))]:
                 ctx, page, errs = await fresh(b, w)
@@ -80,3 +87,4 @@ async def main():
         await b.close()
     print(f"{sum(results)}/{len(results)} passed")
 asyncio.run(main())
+if not all(results): raise SystemExit(1)
