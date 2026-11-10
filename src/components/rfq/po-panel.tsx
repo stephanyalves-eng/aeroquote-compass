@@ -67,6 +67,7 @@ interface Props {
   onDraftDirty: (dirty: boolean) => void;
 }
 export function PoPanel({
+  actor,
   context,
   state,
   onLoad,

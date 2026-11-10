@@ -34,7 +34,9 @@ export function RecommendationPanel({
   onCalculation,
   onExport,
   onChangeWeights,
+  actor,
 }: {
+  actor?: string;
   list: Intelligence[];
   reference: RfqReference;
   weights: Weights;
