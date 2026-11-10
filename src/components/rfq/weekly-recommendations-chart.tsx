@@ -3,7 +3,13 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { weeklyRecommendationsQuery } from "@/lib/rfq/weekly-recommendations-query";
 import {
   weeklyRecommendationLabel,
@@ -18,7 +24,8 @@ export function WeeklyRecommendationsChart() {
   const { data: snapshot, isRefetchError } = useSuspenseQuery(weeklyRecommendationsQuery);
   const [period, setPeriod] = useState<RecommendationPeriod>("4");
   const [custom, setCustom] = useState(() => recommendationPeriodRange("4", snapshot.updatedAt));
-  const range = period === "custom" ? custom : recommendationPeriodRange(period, snapshot.updatedAt);
+  const range =
+    period === "custom" ? custom : recommendationPeriodRange(period, snapshot.updatedAt);
   const { rows, error } = weeklyRecommendationRows(snapshot, range.start, range.end);
   const totals = weeklyRecommendationSummary(rows);
   return (
@@ -59,11 +66,19 @@ export function WeeklyRecommendationsChart() {
       </div>
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <div className="w-44">
-          <label htmlFor="recommendation-period" className="mb-1 block text-sm text-text-secondary">Period</label>
-          <Select value={period} onValueChange={(value) => {
-            if (value === "4" || value === "8" || value === "12" || value === "custom") setPeriod(value);
-          }}>
-            <SelectTrigger id="recommendation-period" aria-label="Recommendation period"><SelectValue /></SelectTrigger>
+          <label htmlFor="recommendation-period" className="mb-1 block text-sm text-text-secondary">
+            Period
+          </label>
+          <Select
+            value={period}
+            onValueChange={(value) => {
+              if (value === "4" || value === "8" || value === "12" || value === "custom")
+                setPeriod(value);
+            }}
+          >
+            <SelectTrigger id="recommendation-period" aria-label="Recommendation period">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="4">Last 4 weeks</SelectItem>
               <SelectItem value="8">Last 8 weeks</SelectItem>
@@ -72,17 +87,37 @@ export function WeeklyRecommendationsChart() {
             </SelectContent>
           </Select>
         </div>
-        {period === "custom" && <>
-          <label className="min-w-0 text-sm text-text-secondary">Start date
-            <Input type="date" aria-label="Recommendation start date" value={custom.start} onChange={(e) => setCustom({ ...custom, start: e.target.value })} />
-          </label>
-          <label className="min-w-0 text-sm text-text-secondary">End date
-            <Input type="date" aria-label="Recommendation end date" value={custom.end} onChange={(e) => setCustom({ ...custom, end: e.target.value })} />
-          </label>
-        </>}
+        {period === "custom" && (
+          <>
+            <label className="min-w-0 text-sm text-text-secondary">
+              Start date
+              <Input
+                type="date"
+                aria-label="Recommendation start date"
+                value={custom.start}
+                onChange={(e) => setCustom({ ...custom, start: e.target.value })}
+              />
+            </label>
+            <label className="min-w-0 text-sm text-text-secondary">
+              End date
+              <Input
+                type="date"
+                aria-label="Recommendation end date"
+                value={custom.end}
+                onChange={(e) => setCustom({ ...custom, end: e.target.value })}
+              />
+            </label>
+          </>
+        )}
       </div>
-      <p className="mt-2 text-xs text-text-tertiary">{range.start} – {range.end} · Whole calendar weeks</p>
-      {error && <p role="alert" className="mt-2 text-sm text-status-error">{error}</p>}
+      <p className="mt-2 text-xs text-text-tertiary">
+        {range.start} – {range.end} · Whole calendar weeks
+      </p>
+      {error && (
+        <p role="alert" className="mt-2 text-sm text-status-error">
+          {error}
+        </p>
+      )}
       <div className="mt-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-3xl font-medium tabular-nums">{totals[mode]}</span>
         <span className="text-sm text-text-secondary">
@@ -123,7 +158,9 @@ export function WeeklyRecommendationsChart() {
         </ResponsiveContainer>
       </div>
       <p className="mt-2 text-sm text-text-secondary">
-        {totals[mode] === 0 ? "No recommendations recorded in the tracked weeks of this period. " : ""}
+        {totals[mode] === 0
+          ? "No recommendations recorded in the tracked weeks of this period. "
+          : ""}
         Earlier untracked weeks have unknown totals.
       </p>
       <details className="mt-3 text-sm">
@@ -151,8 +188,12 @@ export function WeeklyRecommendationsChart() {
         </table>
       </details>
       <p className="mt-4 text-xs text-text-tertiary">
-        Updated {new Date(snapshot.updatedAt).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })} (São Paulo)
-        {isRefetchError || snapshot.unavailable ? " · Update unavailable; showing last received totals." : " · Automatic updates"}
+        Updated{" "}
+        {new Date(snapshot.updatedAt).toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })}{" "}
+        (São Paulo)
+        {isRefetchError || snapshot.unavailable
+          ? " · Update unavailable; showing last received totals."
+          : " · Automatic updates"}
       </p>
     </section>
   );

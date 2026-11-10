@@ -154,10 +154,14 @@ const initialInvestigations = () =>
 
 export const Route = createFileRoute("/")({
   loader: async ({ context }) => {
-    try { await context.queryClient.ensureQueryData(weeklyRecommendationsQuery); }
-    catch { context.queryClient.setQueryData(weeklyRecommendationsQuery.queryKey, {
-      ...WEEKLY_RECOMMENDATION_SNAPSHOT, unavailable: true,
-    }); }
+    try {
+      await context.queryClient.ensureQueryData(weeklyRecommendationsQuery);
+    } catch {
+      context.queryClient.setQueryData(weeklyRecommendationsQuery.queryKey, {
+        ...WEEKLY_RECOMMENDATION_SNAPSHOT,
+        unavailable: true,
+      });
+    }
   },
   head: () => ({
     meta: [
@@ -284,27 +288,44 @@ function Index() {
       }),
     ]);
   const measureBuyerRecommendation = (next: QuoteDocument[]) => {
-    if (metricInFlight.current || !shouldMeasureBuyerConfirmedRecommendation(next, reference, weights, auditEvents)) return;
+    if (
+      metricInFlight.current ||
+      !shouldMeasureBuyerConfirmedRecommendation(next, reference, weights, auditEvents)
+    )
+      return;
     metricInFlight.current = true;
     const milestone = createAuditEvent({
-      id: crypto.randomUUID(), timestamp: new Date().toISOString(),
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
       action: RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT,
     });
     setAuditEvents((events) => [...events, milestone]);
     void syncWeeklyRecommendations({ id: milestone.id, synthetic: Boolean(reference.demoAnalysis) })
       .then(() => queryClient.invalidateQueries({ queryKey: weeklyRecommendationsQuery.queryKey }))
-      .catch(() => setNotice("Weekly totals could not update. The confirmation is retained and will retry automatically."));
+      .catch(() =>
+        setNotice(
+          "Weekly totals could not update. The confirmation is retained and will retry automatically.",
+        ),
+      );
   };
   useEffect(() => {
     const retry = () => {
-      void syncWeeklyRecommendations().then((changed) => {
-        if (changed) void queryClient.invalidateQueries({ queryKey: weeklyRecommendationsQuery.queryKey });
-      }).catch(() => { /* Retained in the retry outbox. */ });
+      void syncWeeklyRecommendations()
+        .then((changed) => {
+          if (changed)
+            void queryClient.invalidateQueries({ queryKey: weeklyRecommendationsQuery.queryKey });
+        })
+        .catch(() => {
+          /* Retained in the retry outbox. */
+        });
     };
     retry();
     const timer = window.setInterval(retry, 30_000);
     window.addEventListener("online", retry);
-    return () => { window.clearInterval(timer); window.removeEventListener("online", retry); };
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("online", retry);
+    };
   }, [queryClient]);
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "unsaved" | "failed">(
@@ -1023,10 +1044,18 @@ function Index() {
   };
   const open = (id: string, snapshot: Snapshot, storedStatus: RfqStatus) => {
     metricInFlight.current = false;
-    const metric = snapshot.auditEvents?.find((event) => event.action === RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT);
-    if (metric) void syncWeeklyRecommendations({ id: metric.id, synthetic: Boolean(snapshot.reference.demoAnalysis) })
-      .then(() => queryClient.invalidateQueries({ queryKey: weeklyRecommendationsQuery.queryKey }))
-      .catch(() => setNotice("Weekly totals will retry automatically."));
+    const metric = snapshot.auditEvents?.find(
+      (event) => event.action === RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT,
+    );
+    if (metric)
+      void syncWeeklyRecommendations({
+        id: metric.id,
+        synthetic: Boolean(snapshot.reference.demoAnalysis),
+      })
+        .then(() =>
+          queryClient.invalidateQueries({ queryKey: weeklyRecommendationsQuery.queryKey }),
+        )
+        .catch(() => setNotice("Weekly totals will retry automatically."));
     reopening.current = true;
     skipDirty.current = true;
     setSaveState("saved");
