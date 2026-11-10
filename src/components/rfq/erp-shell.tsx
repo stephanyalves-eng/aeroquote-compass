@@ -51,6 +51,7 @@ import type { SearchEntry } from "@/lib/rfq/search";
 import type { AttentionItem, OperationItem } from "@/lib/rfq/operations";
 import type { RfqReference } from "@/lib/rfq/types";
 import type { RfqStatus } from "@/lib/rfq/workflow";
+import { WeeklyRecommendationsChart } from "./weekly-recommendations-chart";
 
 const NAV_ICONS: Record<string, typeof LayoutDashboard> = {
   dashboard: LayoutDashboard,
@@ -615,6 +616,7 @@ export function DashboardView({
           </ul>
         )}
       </section>
+      <WeeklyRecommendationsChart />
     </div>
   );
 }
