@@ -31,7 +31,7 @@ export const extractQuote = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => extractionInput.parse(d))
   .handler(async ({ data }): Promise<{ quote: ExtractedQuote | null; error: string | null }> => {
     if (!data.text?.trim() && !data.pdfBase64) return { quote: null, error: "Empty quote." };
-    const apiKey = process.env['LOVABLE_API_KEY'];
+    const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) return { quote: null, error: "AI is not configured." };
     const { createOpenAI } = await import("@ai-sdk/openai");
     const { streamText, Output } = await import("ai");
@@ -44,9 +44,21 @@ export const extractQuote = createServerFn({ method: "POST" })
       fetch: runId.fetch,
     });
     const content: Array<
-      { type: "text"; text: string } | { type: "file"; data: string; mediaType: string; filename: string }
-    > = [{ type: "text", text: `Today is ${data.today}. Extract this quotation:\n\n${data.text ?? ""}` }];
-    if (data.pdfBase64) content.push({ type: "file", data: data.pdfBase64, mediaType: "application/pdf", filename: data.fileName ?? "quotation.pdf" });
+      | { type: "text"; text: string }
+      | { type: "file"; data: string; mediaType: string; filename: string }
+    > = [
+      {
+        type: "text",
+        text: `Today is ${data.today}. Extract this quotation:\n\n${data.text ?? ""}`,
+      },
+    ];
+    if (data.pdfBase64)
+      content.push({
+        type: "file",
+        data: data.pdfBase64,
+        mediaType: "application/pdf",
+        filename: data.fileName ?? "quotation.pdf",
+      });
     try {
       const result = streamText({
         model: provider.responses("openai/gpt-6-astra"),
@@ -70,8 +82,13 @@ export const extractQuote = createServerFn({ method: "POST" })
     } catch (err) {
       const status = (err as { statusCode?: number }).statusCode;
       console.error("extractQuote failed", { status });
-      if (status === 429) return { quote: null, error: "Too many requests. Please wait a moment and try again." };
-      if (status === 402) return { quote: null, error: "AI credits exhausted. Add credits in Settings → Plans & credits." };
+      if (status === 429)
+        return { quote: null, error: "Too many requests. Please wait a moment and try again." };
+      if (status === 402)
+        return {
+          quote: null,
+          error: "AI credits exhausted. Add credits in Settings → Plans & credits.",
+        };
       if (status === 403) return { quote: null, error: "AI access is blocked for this workspace." };
       return { quote: null, error: "Extraction failed. Check the document and reprocess it." };
     }

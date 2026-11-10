@@ -947,7 +947,9 @@ function Index() {
     try {
       const { data: auth, error: authError } = await supabase.auth.getUser();
       if (authError || !auth.user) {
-        setNotice("Sign in to extract quotations with AI. Demo data, comparison and exports remain public.");
+        setNotice(
+          "Sign in to extract quotations with AI. Demo data, comparison and exports remain public.",
+        );
         setHistory(true);
         return;
       }
@@ -964,7 +966,11 @@ function Index() {
             fileName: d.fileName,
           });
           if (!input.success) {
-            patch(d.id, { status: "Error", error: "Provide quotation text up to 60,000 characters or a valid PDF up to 6 MB, with a valid analysis date." });
+            patch(d.id, {
+              status: "Error",
+              error:
+                "Provide quotation text up to 60,000 characters or a valid PDF up to 6 MB, with a valid analysis date.",
+            });
             failed = true;
             continue;
           }
