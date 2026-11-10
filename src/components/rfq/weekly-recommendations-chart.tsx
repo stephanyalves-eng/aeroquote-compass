@@ -16,6 +16,7 @@ import {
   weeklyRecommendationSummary,
   weeklyRecommendationRows,
   recommendationPeriodRange,
+  weeklyRecommendationComparison,
   type RecommendationPeriod,
 } from "@/lib/rfq/weekly-recommendations";
 
@@ -28,6 +29,7 @@ export function WeeklyRecommendationsChart() {
     period === "custom" ? custom : recommendationPeriodRange(period, snapshot.updatedAt);
   const { rows, error } = weeklyRecommendationRows(snapshot, range.start, range.end);
   const totals = weeklyRecommendationSummary(rows);
+  const comparison = weeklyRecommendationComparison(snapshot, range.start, range.end, mode);
   return (
     <section
       aria-labelledby="weekly-recommendations-title"
@@ -124,6 +126,34 @@ export function WeeklyRecommendationsChart() {
           {mode === "real" ? "real" : "demo"} RFQs recommended · {totals.trackedWeeks} tracked weeks
         </span>
       </div>
+      {comparison && (
+        <div aria-label="Previous period comparison" className="mt-4 border-l-2 border-border-default pl-4 text-sm">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <p className="text-text-secondary">Selected period</p>
+              <p className="font-medium tabular-nums">{comparison.currentTotal ?? "Unknown"} RFQs</p>
+              <p className="text-xs text-text-tertiary">{comparison.selectedRange.start} – {comparison.selectedRange.end}</p>
+            </div>
+            <div>
+              <p className="text-text-secondary">Previous period</p>
+              <p className="font-medium tabular-nums">{comparison.previousTotal ?? "Unknown"} RFQs</p>
+              <p className="text-xs text-text-tertiary">{comparison.previousRange.start} – {comparison.previousRange.end}</p>
+            </div>
+            <div>
+              <p className="text-text-secondary">Change{comparison.partial ? " · Provisional" : ""}</p>
+              <p className="font-medium tabular-nums">
+                {comparison.difference === null ? "Unavailable" : `${comparison.difference > 0 ? "+" : ""}${comparison.difference} RFQs`}
+                {comparison.percentage !== null && ` (${comparison.percentage > 0 ? "+" : ""}${comparison.percentage.toFixed(1)}%)`}
+              </p>
+              {comparison.difference !== null && comparison.previousTotal === 0 && (
+                <p className="text-xs text-text-tertiary">Percentage unavailable: previous total is zero.</p>
+              )}
+            </div>
+          </div>
+          {comparison.difference === null && <p className="mt-2 text-text-secondary">Comparison unavailable: one or both periods include untracked weeks.</p>}
+          {comparison.partial && <p className="mt-2 text-text-secondary">Partial coverage · Totals include an incomplete tracking week; change is provisional.</p>}
+        </div>
+      )}
       <div className="mt-4 h-56 min-w-0 overflow-hidden" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} margin={{ top: 12, right: 12, left: -20, bottom: 4 }}>
