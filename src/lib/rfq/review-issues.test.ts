@@ -22,7 +22,7 @@ describe("Phase 1 deterministic review", () => {
   });
   it("sets mixed flags consistently and clears them without removing confirmations", () => {
     const d = confirmReviewFields(doc(), ["revision"]);
-    d.fieldStatus = { ...d.fieldStatus, eccn: { followUp: true } };
+    d.fieldStatus = { ...d.fieldStatus, eccn: { confirmed: false, followUp: true } };
     const flagged = setAllReviewFollowUp(d, true);
     expect(setAllReviewFollowUp(flagged, true)).toEqual(flagged);
     const cleared = setAllReviewFollowUp(flagged, false);
