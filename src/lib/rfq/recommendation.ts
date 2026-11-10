@@ -1,7 +1,25 @@
-import { decisionInsights, validWeights, type Intelligence, type Weights } from "./intelligence";
+import { compareDocuments, decisionInsights, validWeights, type Intelligence, type Weights } from "./intelligence";
 import { classifyEligibility } from "./eligibility";
 import type { RfqReference } from "./types";
 import { DEMO_BUYER } from "./audit";
+import { canCompare, type QuoteDocument } from "./workflow";
+import type { AuditEvent } from "./review-types";
+export const RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT =
+  "RFQ recommendation after buyer quotation confirmation measured";
+/** One milestone per retained RFQ audit; calculation remains gated by buyer review. */
+export function shouldMeasureBuyerConfirmedRecommendation(
+  documents: QuoteDocument[],
+  reference: RfqReference,
+  weights: Weights,
+  audit: AuditEvent[],
+): boolean {
+  if (
+    audit.some((e) => e.action === RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT) ||
+    !canCompare(documents, reference) ||
+    !validWeights(weights)
+  ) return false;
+  return Boolean(decisionInsights(compareDocuments(documents, reference, weights), reference).recommended);
+}
 export const ROBUSTNESS_TOOLTIP = "Robust: score lead ≥ 10 points and absolute cost gap ≥ 3%. Moderate: score lead ≥ 5 points and absolute cost gap ≥ 1%. Otherwise Sensitive. With no eligible alternative: Sensitive (no competitive comparison). These are deterministic indicators, not a weight-sensitivity simulation.";
 export type WhyNotCategory = "disqualified_by_blocker" | "higher_total_cost" | "lower_score" | "relevant_risk" | "expired_quote" | "missing_certification_or_requirement";
 export const REASON_LABELS: Record<WhyNotCategory, string> = { disqualified_by_blocker: "Disqualified by blocker", higher_total_cost: "Higher total cost", lower_score: "Lower score", relevant_risk: "Relevant risk", expired_quote: "Expired quotation", missing_certification_or_requirement: "Missing certification or requirement" };
