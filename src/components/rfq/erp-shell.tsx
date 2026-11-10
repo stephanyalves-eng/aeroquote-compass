@@ -1,3 +1,4 @@
+import type { IdentityLabel } from "@/lib/rfq/identity";
 import { useOverflowFocusable } from "@/hooks/use-overflow-focusable";
 import { useId, useState } from "react";
 import {
@@ -319,6 +320,17 @@ export function GlobalSearch({
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         className="min-h-11 min-w-0 w-full rounded-sm border border-text-inverse/20 bg-text-inverse/10 pl-9 pr-3 text-sm text-text-inverse placeholder:text-text-inverse/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring md:min-h-9"
       />
+      <div role="status" aria-live="polite" className="sr-only">
+        {open && query.trim() && results.length === 0 ? `No results for "${query.trim()}"` : ""}
+      </div>
+      {open && query.trim() && results.length === 0 && (
+        <p
+          aria-hidden="true"
+          className="absolute inset-x-0 top-full z-50 mt-1 rounded-sm border border-border-default bg-surface-card px-3 py-3 text-sm text-text-secondary"
+        >
+          No results for “{query.trim()}”
+        </p>
+      )}
       {open && results.length > 0 && (
         <ul
           role="listbox"
@@ -441,14 +453,19 @@ export function Breadcrumb({ trail }: { trail: string[] }) {
   );
 }
 
-export function DemoUser() {
+export function DemoUser({ identity }: { identity: IdentityLabel }) {
+  const descId = useId();
   return (
     <span
       className="hidden items-center gap-2 text-xs text-text-inverse/75 lg:flex"
-      title="Fictional demonstration user"
+      title={identity.secondary}
+      aria-describedby={descId}
     >
       <User className="size-4" strokeWidth={1.5} aria-hidden="true" />
-      Marina Costa · Demo buyer
+      {identity.primary}
+      <span id={descId} className="sr-only">
+        {identity.secondary}
+      </span>
     </span>
   );
 }
@@ -509,20 +526,24 @@ export function RecordHeader({
   reference,
   status,
   saveLabel,
+  owner,
 }: {
   reference: RfqReference;
   status: RfqStatus;
   saveLabel: string;
+  owner: string;
 }) {
   const fields: [string, string][] = [
     ["Part number", reference.partNumber || "Not provided"],
     ["Current revision", reference.revision || "Not provided"],
     [
       "Annual quantity",
-      reference.annualVolume != null ? String(reference.annualVolume) : "Not provided",
+      reference.annualVolume != null && Number.isFinite(reference.annualVolume)
+        ? String(reference.annualVolume)
+        : "Not provided",
     ],
     ["Base currency", "USD"],
-    ["Owner", "Marina Costa (Demo buyer)"],
+    ["Owner", owner],
     ["Status", status],
     ["Analysis date", reference.today || "Not provided"],
     ["Save state", saveLabel],
@@ -566,11 +587,15 @@ export function DashboardView({
   attention,
   onSelect,
   reference,
+  hasRfq = true,
+  onDemo,
 }: {
   items: OperationItem[];
   attention: AttentionItem[];
   onSelect: (step: number) => void;
   reference: RfqReference;
+  hasRfq?: boolean;
+  onDemo?: () => void;
 }) {
   return (
     <div className="space-y-6">
@@ -616,7 +641,23 @@ export function DashboardView({
             Ordered by severity and due date. Synthetic demonstration data.
           </p>
         </div>
-        {attention.length === 0 ? (
+        {!hasRfq ? (
+          <div className="space-y-3 p-4">
+            <p className="text-sm font-medium">No RFQ yet</p>
+            <p className="text-sm text-text-secondary">
+              Start by entering the RFQ details, or load a synthetic demo sample to explore the full
+              flow.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => onSelect(0)}>Start in RFQ Setup</Button>
+              {onDemo && (
+                <Button variant="outline" onClick={onDemo}>
+                  Load a demo sample
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : attention.length === 0 ? (
           <p className="p-4 text-sm text-text-secondary">
             Nothing requires attention. The process is up to date.
           </p>
