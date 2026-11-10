@@ -1185,7 +1185,7 @@ function Index() {
     }
   };
   const saveCurrent = async () => {
-    const { data } = await supabase.auth.getSession();
+    const data = await supabase.auth.getSession().then((r) => r.data, () => ({ session: null }));
     if (!data.session) {
       setNotice("Sign in to save this analysis privately.");
       setHistory(true);
