@@ -1,4 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { resolveView, viewSlug, HISTORY_VIEW } from "@/lib/rfq/view-route";
+import { browserStorage, readDraft, writeDraft, clearDraft, reviveReferenceNumbers, shouldWarnBeforeUnload } from "@/lib/rfq/draft-storage";
+import { suggestedRfqStatus, rfqStatusMismatch, viewProgressLabel } from "@/lib/rfq/rfq-status";
+import { identityLabel, ownerLabel } from "@/lib/rfq/identity";
+import { workspaceHasRfq } from "@/lib/rfq/unsaved-work";
+import { blankRfqReference } from "@/lib/rfq/workflow";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useQueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
@@ -157,6 +163,8 @@ const initialInvestigations = () =>
   CASES.map((c) => investigateFailure(c.failure, c.snapshots, c.registry, c.manufacturedOn));
 
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>): { view?: string } =>
+    typeof search.view === "string" && search.view ? { view: search.view } : {},
   loader: async ({ context }) => {
     try {
       await context.queryClient.ensureQueryData(weeklyRecommendationsQuery);
@@ -200,15 +208,27 @@ const steps: string[] = [...MAIN_STEPS.map((m) => m.label), ...TRACEABILITY];
 function Index() {
   const queryClient = useQueryClient();
   const metricInFlight = useRef(false);
-  const [reference, setReference] = useState(newReference);
+  const [reference, setReference] = useState(blankRfqReference);
   const [documents, setDocuments] = useState<QuoteDocument[]>([]);
   const [weights, setWeights] = useState({ ...DEFAULT_WEIGHTS });
-  const [step, setStep] = useState(DASHBOARD_STEP);
-  const [history, setHistory] = useState(false);
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: "/" });
+  const setStep = (i: number, replace = false) => {
+    void navigate({ search: i === DASHBOARD_STEP ? {} : { view: viewSlug(i) }, replace });
+  };
+  /** Leaving history happens through setStep; only opening it navigates. */
+  const setHistory = (on: boolean) => {
+    if (on) void navigate({ search: { view: HISTORY_VIEW } });
+  };
+  const [draftReady, setDraftReady] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [storedFingerprint, setStoredFingerprint] = useState<string | null>(null);
+  const [user, setUser] = useState<{ email: string | null; name: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const processing = useRef(false);
   const [notice, setNotice] = useState("");
-  const [status, setStatus] = useState<RfqStatus>("Draft");
+  /** null = follow the status suggested by workflow evidence; a value = buyer's manual choice. */
+  const [manualStatus, setStatus] = useState<RfqStatus | null>(null);
   const [savedId, setSavedId] = useState<string | undefined>();
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [approvedDecision, setApprovedDecision] = useState<ApprovedDecision>();
@@ -351,7 +371,7 @@ function Index() {
         reference,
         documents,
         weights,
-        status,
+        status: manualStatus,
         approvedDecision,
         poState,
         registry,
@@ -360,7 +380,7 @@ function Index() {
         investigations,
         auditEvents,
       }),
-    [reference, documents, weights, status, approvedDecision, poState, registry, snapshots, assessments, investigations, auditEvents],
+    [reference, documents, weights, manualStatus, approvedDecision, poState, registry, snapshots, assessments, investigations, auditEvents],
   );
   const [baseline, setBaseline] = useState<SaveBaseline>({ fingerprint: null, saved: false });
   /** null = baseline settled; boolean = capture the next workspace state as baseline (true = saved). */
@@ -377,15 +397,78 @@ function Index() {
   }, [fingerprint, baselineTick]);
   const unsavedWork = hasUnsavedWork(fingerprint, baseline, poDraftDirty);
   const workspaceStatus = workspaceSaveStatus(fingerprint, baseline, poDraftDirty);
+  const workspaceUnsaved = hasUnsavedWork(fingerprint, baseline);
+  // Restore a locally stored draft once, after hydration.
   useEffect(() => {
-    if (!unsavedWork) return;
+    const draft = readDraft<Record<string, any>>(browserStorage());
+    const w = draft?.workspace;
+    if (w?.reference && Array.isArray(w.documents)) {
+      reopening.current = true;
+      setReference(reviveReferenceNumbers(w.reference));
+      setDocuments(w.documents);
+      if (w.weights) setWeights(w.weights);
+      setStatus(w.status ?? null);
+      setApprovedDecision(w.approvedDecision);
+      setPoState(w.poState ?? emptyPoState());
+      setRegistry(w.registry ?? demoRevisionRegistry());
+      setSnapshots(w.snapshots ?? []);
+      setAssessments(w.assessments ?? []);
+      setInvestigations(w.investigations ?? initialInvestigations());
+      setAuditEvents(w.auditEvents ?? []);
+      setSavedId(w.savedId);
+      rebaseline.current = null;
+      setBaseline({ fingerprint: "restored-draft", saved: false });
+      setDraftRestored(true);
+    }
+    setDraftReady(true);
+  }, []);
+  // Debounced autosave of the draft; cleared when the workspace is pristine or saved.
+  useEffect(() => {
+    if (!draftReady) return;
+    const storage = browserStorage();
+    if (!workspaceUnsaved) {
+      clearDraft(storage);
+      setStoredFingerprint(null);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const ok = writeDraft(
+        storage,
+        { reference, documents, weights, status: manualStatus, approvedDecision, poState, registry, snapshots, assessments, investigations, auditEvents, savedId },
+        new Date().toISOString(),
+      );
+      setStoredFingerprint(ok ? fingerprint : null);
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [fingerprint, workspaceUnsaved, draftReady, savedId]);
+  useEffect(() => {
+    let active = true;
+    const apply = (u: { email?: string | null; user_metadata?: Record<string, unknown> } | null | undefined) => {
+      if (!active) return;
+      setUser(u ? { email: u.email ?? null, name: typeof u.user_metadata?.full_name === "string" ? u.user_metadata.full_name : null } : null);
+    };
+    void supabase.auth.getSession().then(({ data }) => apply(data.session?.user));
+    const { data } = supabase.auth.onAuthStateChange((_e, session) => apply(session?.user));
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
+  const warnOnLeave = shouldWarnBeforeUnload({
+    unsaved: workspaceUnsaved,
+    poFormDirty: poDraftDirty,
+    current: fingerprint,
+    storedFingerprint,
+  });
+  useEffect(() => {
+    if (!warnOnLeave) return;
     const warn = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [unsavedWork]);
+  }, [warnOnLeave]);
   const extract = useServerFn(extractQuote);
   const save = useServerFn(saveHistory);
   useEffect(() => setReference((r) => ({ ...r, today: r.today || localToday() })), []);
@@ -405,6 +488,18 @@ function Index() {
     }
   }, [results, reference, approvedDecision]);
   const poStatus = purchaseOrderStatus(poState, Boolean(poContext));
+  const resolvedView = resolveView(search.view, {
+    ready,
+    decision: Boolean(poContext),
+    hasDocuments: documents.length > 0,
+  });
+  const step = resolvedView.step;
+  const history = resolvedView.history;
+  useEffect(() => {
+    if (!draftReady || !resolvedView.reason) return;
+    setNotice(resolvedView.reason);
+    setStep(resolvedView.step, true);
+  }, [draftReady, resolvedView.reason, resolvedView.step]);
   const poTimestamp = () =>
     reference.demoAnalysis ? `${reference.today}T12:00:00.000Z` : new Date().toISOString();
   const loadPo = (scenario: PoScenario | "Created from approval") => {
@@ -760,7 +855,7 @@ function Index() {
           newValue: q[f.key],
         });
     patch(id, editReviewDocument(d, q, new Date().toISOString()));
-    setStatus("Draft");
+    setStatus(null);
   };
   const confirmField = (id: string, field: ReviewField) => {
     const d = documents.find((x) => x.id === id);
@@ -824,7 +919,7 @@ function Index() {
       previousValue: d.reviewed[field],
       newValue: d.original[field],
     });
-    setStatus("Draft");
+    setStatus(null);
   };
   const loadSamples = () => {
     metricInFlight.current = false;
@@ -858,7 +953,7 @@ function Index() {
     );
     setStep(1);
     setHistory(false);
-    setStatus("Draft");
+    setStatus(null);
     setSavedId(undefined);
     setNotice("");
     setUndoDocs(null);
@@ -929,7 +1024,7 @@ function Index() {
         );
       }
     }
-    setStatus("Draft");
+    setStatus(null);
   };
   const files = async (incoming: File[]) => {
     if (processing.current || documents.some((d) => d.status === "Uploading")) return;
@@ -949,7 +1044,7 @@ function Index() {
     }));
     setDocuments((ds) => [...ds, ...added]);
     setNotice("");
-    setStatus("Draft");
+    setStatus(null);
     await Promise.all(
       incoming.map(async (f, i) => {
         const d = added[i];
@@ -1061,7 +1156,7 @@ function Index() {
           "Some quotations could not be extracted. Resolve or remove failed files before comparison.",
         );
       setStep(2);
-      setStatus("Draft");
+      setStatus(null);
     } finally {
       processing.current = false;
       setBusy(false);
@@ -1370,6 +1465,11 @@ function Index() {
       }),
     [validReference, documents, busy, results, approvedDecision, poState, poStatus, gate],
   );
+  const suggestedStatus = suggestedRfqStatus(processSteps);
+  const status: RfqStatus = manualStatus ?? suggestedStatus;
+  const statusNote = manualStatus ? rfqStatusMismatch(manualStatus, processSteps) : null;
+  const identity = identityLabel(user);
+  const hasRfq = workspaceHasRfq({ reference, documents, auditEvents, savedId, unsaved: workspaceUnsaved });
   void pendingBlockers;
   void stages;
   const stepDisabled = (i: number): string | null =>
@@ -1389,10 +1489,8 @@ function Index() {
   const go = (i: number) => {
     if (poDraftDirty && !window.confirm("Discard unsaved PO draft changes?")) return;
     setPoDraftDirty(false);
-    setStep(i);
+    if (i !== step || history) setStep(i);
     setNotice("");
-    setHistory(false);
-    if (i === 3) setStatus((st) => (st === "Draft" ? "Completed" : st));
   };
   const allExtracted = documents.length > 0 && documents.every((d) => d.original);
   const continueAction: { label: string; run: () => void; reason: string | null } | null =
@@ -1465,12 +1563,14 @@ function Index() {
     metricInFlight.current = false;
     setAuditEvents([]);
     resetConfiguration();
-    setReference({ ...newReference(), today: localToday() });
+    setReference({ ...blankRfqReference(), today: localToday() });
+    setDraftRestored(false);
+    clearDraft(browserStorage());
     setDocuments([]);
     setSavedId(undefined);
     setStep(DASHBOARD_STEP);
     setHistory(false);
-    setStatus("Draft");
+    setStatus(null);
     setNotice("");
     reopening.current = true;
     setShowSetupErrors(false);
@@ -1480,7 +1580,8 @@ function Index() {
     resetBaseline(false);
   };
   const openHistory = () => {
-    setHistory(!history);
+    if (history) setStep(DASHBOARD_STEP);
+    else setHistory(true);
     setNotice("");
   };
   return (
@@ -1515,7 +1616,7 @@ function Index() {
               onSelect={(entry) => go(entry.step)}
             />
             <Notifications items={attentionItems} onSelect={go} />
-            <DemoUser />
+            <DemoUser identity={identity} />
           </div>
         </div>
       </header>
@@ -1545,13 +1646,15 @@ function Index() {
               <div className="flex items-center gap-2">
                 <select
                   aria-label="RFQ status"
+                  aria-describedby={statusNote ? "rfq-status-note" : undefined}
                   className={`${control} hidden py-1 text-xs sm:block`}
-                  value={status}
-                  disabled={busy || (!ready && status === "Draft")}
-                  onChange={(e) => setStatus(e.target.value as RfqStatus)}
+                  value={manualStatus ?? ""}
+                  disabled={busy}
+                  onChange={(e) => setStatus(e.target.value ? (e.target.value as RfqStatus) : null)}
                 >
-                  {["Draft", "Analyzing", "Completed", "Under Negotiation", "Awarded"].map((x) => (
-                    <option key={x} disabled={x !== "Draft" && x !== "Analyzing" && !ready}>
+                  <option value="">Suggested: {suggestedStatus}</option>
+                  {(["Draft", "Analyzing", "Under Negotiation", "Awarded", "Completed"] as const).map((x) => (
+                    <option key={x} value={x}>
                       {x}
                     </option>
                   ))}
@@ -1568,11 +1671,41 @@ function Index() {
                 </Button>
               </div>
             </div>
+            {statusNote && (
+              <p
+                id="rfq-status-note"
+                className="mx-auto max-w-7xl border-t border-warning bg-warning-bg px-4 py-1.5 text-xs text-warning sm:px-8"
+              >
+                {statusNote}
+              </p>
+            )}
           </div>
           <main
             id="main"
             className="mx-auto max-w-7xl min-w-0 space-y-6 px-4 pb-28 pt-6 sm:px-8 md:space-y-8 md:pb-10 md:pt-8"
           >
+            {draftRestored && (
+              <div
+                role="status"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-border-default bg-surface-card px-4 py-2 text-sm"
+              >
+                <span>Draft restored from this browser.</span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (window.confirm("Discard the restored draft and start a new RFQ? This cannot be undone.")) newRfq();
+                    }}
+                  >
+                    Discard
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setDraftRestored(false)}>
+                    Keep
+                  </Button>
+                </div>
+              </div>
+            )}
             {notice && (
               <div
                 role="status"
@@ -1618,10 +1751,15 @@ function Index() {
                 attention={attentionItems}
                 onSelect={go}
                 reference={reference}
+                hasRfq={hasRfq}
+                onDemo={() => {
+                  go(0);
+                  requestAnimationFrame(() => document.getElementById("demo-data")?.scrollIntoView());
+                }}
               />
             ) : (
               <>
-                <RecordHeader reference={reference} status={status} saveLabel={saveLabel} />
+                <RecordHeader reference={reference} status={status} saveLabel={saveLabel} owner={ownerLabel(user)} />
                 {poState.po && (
                   <p className="text-sm text-text-secondary">
                     PO {poState.po.poNumber} · {lifecycleStatus(poState, gateBlocked(gate))}
@@ -1630,9 +1768,7 @@ function Index() {
                 <ProcessStepper steps={processSteps} />
                 <div className="min-w-0">
                   <p className="hidden text-xs text-text-secondary md:block">
-                    {step >= TRACE_OFFSET
-                      ? "Traceability"
-                      : `Step ${step + 1} of ${MAIN_STEPS.length}`}
+                    {viewProgressLabel(step, processSteps)}
                   </p>
                   <h2 className="mt-1 break-words text-2xl font-medium tracking-[-0.02em] md:text-4xl">
                     {viewLabel}
@@ -1660,7 +1796,7 @@ function Index() {
                 )}
                 {step === 0 && (
                   <DemoData
-                    hasData={documents.length > 0 || auditEvents.length > 0}
+                    hasData={documents.length > 0 || auditEvents.length > 0 || workspaceUnsaved}
                     busy={busy}
                     onClassic={loadSamples}
                     onExtended={loadExtended}
@@ -1672,7 +1808,7 @@ function Index() {
                     showErrors={showSetupErrors}
                     onChange={(r) => {
                       setReference(r);
-                      if (status !== "Draft") setStatus("Draft");
+                      if (status !== "Draft") setStatus(null);
                     }}
                   />
                 )}
@@ -1698,7 +1834,7 @@ function Index() {
                     }}
                     onRemove={(id) => {
                       setDocuments((ds) => ds.filter((d) => d.id !== id));
-                      setStatus("Draft");
+                      setStatus(null);
                     }}
                     onProcess={(id) => process(id)}
                     onName={(id, name) => {
@@ -1809,6 +1945,7 @@ function Index() {
                     cases={CASES}
                     investigations={investigations}
                     onConfirm={confirmInvestigation}
+                    demoLoaded={Boolean(reference.demoAnalysis)}
                   />
                 )}
                 {(step === 5 || step === 9) && (
