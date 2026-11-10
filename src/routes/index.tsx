@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { weeklyRecommendationsQuery } from "@/lib/rfq/weekly-recommendations-query";
 import { WEEKLY_RECOMMENDATION_SNAPSHOT } from "@/lib/rfq/weekly-recommendations";
 import { syncWeeklyRecommendations } from "@/lib/rfq/weekly-recommendations-sync";
@@ -162,6 +162,7 @@ export const Route = createFileRoute("/")({
         unavailable: true,
       });
     }
+    return { weeklyState: dehydrate(context.queryClient) };
   },
   head: () => ({
     meta: [
@@ -181,8 +182,12 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Index,
+  component: HydratedIndex,
 });
+function HydratedIndex() {
+  const { weeklyState } = Route.useLoaderData();
+  return <HydrationBoundary state={weeklyState}><Index /></HydrationBoundary>;
+}
 const steps: string[] = [...MAIN_STEPS.map((m) => m.label), ...TRACEABILITY];
 function Index() {
   const queryClient = useQueryClient();
