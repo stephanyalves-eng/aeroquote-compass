@@ -1,3 +1,4 @@
+import { DEMO_AUDIT_ACTOR } from "@/lib/rfq/identity";
 import { useEffect, useState } from "react";
 import {
   draftErrors,
@@ -66,6 +67,7 @@ interface Props {
   onDraftDirty: (dirty: boolean) => void;
 }
 export function PoPanel({
+  actor,
   context,
   state,
   onLoad,
@@ -76,7 +78,7 @@ export function PoPanel({
   onRelease,
   onDraftDirty,
   configurationBlocked = false,
-}: Props) {
+}: Props & { actor?: string | undefined }) {
   const [scenario, setScenario] = useState<PoScenario>("Correct PO"),
     [accept, setAccept] = useState<PoCheckItem | null>(null),
     [justification, setJustification] = useState(""),
@@ -527,7 +529,7 @@ export function PoPanel({
         <DialogContent className="w-[calc(100%-2rem)] rounded-md">
           <DialogTitle>Accept discrepancy with justification</DialogTitle>
           <DialogDescription>
-            {accept?.fieldLabel} · Marina Costa (Demo buyer). This does not alter the purchase
+            {accept?.fieldLabel} · {actor ?? DEMO_AUDIT_ACTOR}. This does not alter the purchase
             order.
           </DialogDescription>
           <Field label="Buyer justification">

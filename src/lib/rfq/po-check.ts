@@ -135,12 +135,12 @@ export function purchaseOrderStatus(state: PoState, approved = true): PoStatus {
   const s = poSummary(state.result,state.resolutions);
   return s.blockers || state.result.validationErrors.length ? "PO blocked" : s.discrepancies ? "PO with discrepancies" : state.released && s.canRelease ? "PO checked and released" : s.canRelease ? "PO checked, awaiting release" : "PO awaiting check";
 }
-export function resolvePoItem(result: PoCheckResult, resolutions: PoResolution[], itemId: string, action: PoResolution["action"], justification: string, timestamp: string): PoResolution[] {
+export function resolvePoItem(result: PoCheckResult, resolutions: PoResolution[], itemId: string, action: PoResolution["action"], justification: string, timestamp: string, actor: string = DEMO_BUYER): PoResolution[] {
   const item=result.items.find((i)=>i.id===itemId);
   if (!item || !["blocker","requires_review"].includes(item.status)) throw new Error("Select an open discrepancy.");
   if (action==="accepted" && item.status==="blocker") throw new Error("Blockers require correction and cannot be accepted.");
   if (action==="accepted" && !justification.trim()) throw new Error("A written justification is required.");
-  return [...resolutions.filter((r)=>r.itemId!==itemId),{itemId,fingerprint:item.fingerprint,action,justification:justification.trim(),timestamp,actor:DEMO_BUYER}];
+  return [...resolutions.filter((r)=>r.itemId!==itemId),{itemId,fingerprint:item.fingerprint,action,justification:justification.trim(),timestamp,actor}];
 }
 export function releasePurchase(state: PoState, approved: boolean): PoState {
   if (!approved || !state.po || !poSummary(state.result,state.resolutions).canRelease) throw new Error("Resolve every blocker and review discrepancy before release.");

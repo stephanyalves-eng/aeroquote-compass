@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { resolveView, viewSlug, HISTORY_VIEW } from "@/lib/rfq/view-route";
 import { browserStorage, readDraft, writeDraft, clearDraft, reviveReferenceNumbers, shouldWarnBeforeUnload } from "@/lib/rfq/draft-storage";
 import { suggestedRfqStatus, rfqStatusMismatch, viewProgressLabel } from "@/lib/rfq/rfq-status";
-import { identityLabel, ownerLabel } from "@/lib/rfq/identity";
+import { identityLabel, ownerLabel, auditActor } from "@/lib/rfq/identity";
 import { workspaceHasRfq } from "@/lib/rfq/unsaved-work";
 import { blankRfqReference } from "@/lib/rfq/workflow";
 import { useServerFn } from "@tanstack/react-start";
@@ -156,7 +156,6 @@ import { QuoteExplorer } from "@/components/rfq/quote-explorer-panel";
 import { ConfigurationPanel, GatePanel, RevisionStrip } from "@/components/rfq/configuration-panel";
 import { AuditTrail } from "@/components/rfq/audit-trail";
 import { InvestigationPanel } from "@/components/rfq/investigation-panel";
-import { DEMO_BUYER } from "@/lib/rfq/audit";
 const CASES = demoInvestigationCases();
 const initialInvestigations = () =>
   CASES.map((c) => investigateFailure(c.failure, c.snapshots, c.registry, c.manufacturedOn));
@@ -237,6 +236,7 @@ function Index() {
   const [draftRestored, setDraftRestored] = useState(false);
   const [storedFingerprint, setStoredFingerprint] = useState<string | null>(null);
   const [user, setUser] = useState<{ email: string | null; name: string | null } | null>(null);
+  const actor = auditActor(user);
   const [busy, setBusy] = useState(false);
   const processing = useRef(false);
   const [notice, setNotice] = useState("");
@@ -285,7 +285,7 @@ function Index() {
       at: configAt,
       timestamp: reference.demoAnalysis ? `${configAt}T12:00:00.000Z` : new Date().toISOString(),
       checkType,
-      actor: DEMO_BUYER,
+      actor,
       supplier,
       partNumber: reference.partNumber,
       quoteRevision,
@@ -331,7 +331,7 @@ function Index() {
         timestamp: reference.demoAnalysis
           ? `${reference.today}T12:00:00.000Z`
           : new Date().toISOString(),
-      }),
+      }, actor),
     ]);
   const measureBuyerRecommendation = (next: QuoteDocument[]) => {
     if (
@@ -344,7 +344,7 @@ function Index() {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
       action: RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT,
-    });
+    }, actor);
     setAuditEvents((events) => [...events, milestone]);
     void syncWeeklyRecommendations({ id: milestone.id, synthetic: Boolean(reference.demoAnalysis) })
       .then(() => queryClient.invalidateQueries({ queryKey: weeklyRecommendationsQuery.queryKey }))
@@ -460,11 +460,18 @@ function Index() {
       if (!active) return;
       setUser(u ? { email: u.email ?? null, name: typeof u.user_metadata?.["full_name"] === "string" ? (u.user_metadata["full_name"] as string) : null } : null);
     };
-    void supabase.auth.getSession().then(({ data }) => apply(data.session?.user));
-    const { data } = supabase.auth.onAuthStateChange((_e, session) => apply(session?.user));
+    // Blocked browser storage makes the auth client throw on creation: stay signed out and keep working in memory.
+    let unsubscribe = () => {};
+    try {
+      void supabase.auth.getSession().then(({ data }) => apply(data.session?.user)).catch(() => apply(null));
+      const { data } = supabase.auth.onAuthStateChange((_e, session) => apply(session?.user));
+      unsubscribe = () => data.subscription.unsubscribe();
+    } catch {
+      apply(null);
+    }
     return () => {
       active = false;
-      data.subscription.unsubscribe();
+      unsubscribe();
     };
   }, []);
   const warnOnLeave = shouldWarnBeforeUnload({
@@ -530,11 +537,11 @@ function Index() {
       )
         return;
       const next = {
-        ...startPoDraft(po, poTimestamp(), DEMO_BUYER),
+        ...startPoDraft(po, poTimestamp(), actor),
         supplierConfirmations: poState.supplierConfirmations,
         tolerances: { ...poState.tolerances },
         lifecycle: {
-          ...startPoDraft(po, poTimestamp(), DEMO_BUYER).lifecycle,
+          ...startPoDraft(po, poTimestamp(), actor).lifecycle,
           history: poState.lifecycle?.issued
             ? [
                 ...poState.lifecycle.history,
@@ -543,14 +550,14 @@ function Index() {
                   status: "Superseded" as const,
                   revision: poState.lifecycle.revision,
                   timestamp: poTimestamp(),
-                  actor: DEMO_BUYER,
+                  actor,
                 },
               ]
             : (poState.lifecycle?.history ?? []),
           phase: "Draft" as const,
           revision: (poState.lifecycle?.revision ?? 0) + 1,
           updatedAt: poTimestamp(),
-          actor: DEMO_BUYER,
+          actor,
         },
       };
       setPoState(next);
@@ -564,7 +571,7 @@ function Index() {
       revision: (poState.lifecycle?.revision ?? 0) + 1,
       issued: structuredClone(po),
       updatedAt: poTimestamp(),
-      actor: DEMO_BUYER,
+      actor,
       history: [
         ...(poState.lifecycle?.history ?? []),
         ...(poState.po
@@ -574,7 +581,7 @@ function Index() {
                 status: "Superseded" as const,
                 revision: poState.lifecycle?.revision ?? 1,
                 timestamp: poTimestamp(),
-                actor: DEMO_BUYER,
+                actor,
               },
             ]
           : []),
@@ -680,6 +687,7 @@ function Index() {
         action,
         justification,
         poTimestamp(),
+        actor,
       );
       setPoState({ ...poState, resolutions, released: false });
       record(poResolutionAudit(poState.result, poState.po, id, action, justification));
@@ -707,7 +715,7 @@ function Index() {
             poState,
             "Release",
             poTimestamp(),
-            DEMO_BUYER,
+            actor,
             Boolean(poContext),
             gateBlocked(gate),
           )
@@ -735,7 +743,7 @@ function Index() {
         poState,
         action,
         poTimestamp(),
-        DEMO_BUYER,
+        actor,
         Boolean(poContext),
         gateBlocked(gate),
       );
@@ -761,7 +769,7 @@ function Index() {
   };
   const saveSupplierConfirmation = (input: ConfirmationInput) => {
     try {
-      const next = recordSupplierConfirmation(poState, input, poTimestamp(), DEMO_BUYER);
+      const next = recordSupplierConfirmation(poState, input, poTimestamp(), actor);
       setPoState(next);
       record(supplierConfirmationAudit(poState, next));
       if (
@@ -799,6 +807,7 @@ function Index() {
         id,
         justification,
         reference.demoAnalysis ? `${reference.today}T12:00:00.000Z` : new Date().toISOString(),
+        actor,
       );
       const explanation = explainRecommendation(results, reference, weights);
       setApprovedDecision(decision);
@@ -989,7 +998,7 @@ function Index() {
             source: "Demo pre-extraction (synthetic, no AI call)",
             confidences: d.original?.confidence ?? {},
           },
-        }),
+        }, actor),
       ),
     );
     setStep(2);
@@ -1176,7 +1185,7 @@ function Index() {
     }
   };
   const saveCurrent = async () => {
-    const { data } = await supabase.auth.getSession();
+    const data = await supabase.auth.getSession().then((r) => r.data, () => ({ session: null }));
     if (!data.session) {
       setNotice("Sign in to save this analysis privately.");
       setHistory(true);
@@ -1352,7 +1361,7 @@ function Index() {
     justification: string,
   ) => {
     try {
-      const a = createImpactAssessment(alert, level, justification, DEMO_BUYER, poTimestamp());
+      const a = createImpactAssessment(alert, level, justification, actor, poTimestamp());
       setAssessments((xs) => [...xs, a]);
       record({
         action: "Impact assessment recorded",
@@ -1372,7 +1381,7 @@ function Index() {
     try {
       setInvestigations((xs) =>
         xs.map((i) =>
-          i.failureId === failureId ? confirmClassification(i, c, DEMO_BUYER, note) : i,
+          i.failureId === failureId ? confirmClassification(i, c, actor, note) : i,
         ),
       );
       record({
@@ -1980,6 +1989,7 @@ function Index() {
                 )}
                 {(step === 5 || step === 9) && (
                   <PoPanel
+                    actor={actor}
                     configurationBlocked={gateBlocked(gate)}
                     context={poContext}
                     state={poState}
@@ -1990,7 +2000,7 @@ function Index() {
                     onDraftDirty={setPoDraftDirty}
                     onEdit={(po) => {
                       try {
-                        const next = savePoDraft(poState, po, poTimestamp(), DEMO_BUYER);
+                        const next = savePoDraft(poState, po, poTimestamp(), actor);
                         setPoState(next);
                         draftEditAudit(poState.po, po).forEach(record);
                         record(lifecycleAudit("Draft saved", poState, next));
@@ -2031,6 +2041,7 @@ function Index() {
                 )}
                 {(step === 3 || step === 4) && ready && (
                   <Dashboard
+                    actor={actor}
                     view={step === 3 ? "compare" : "decision"}
                     onSummary={exportSummary}
                     selected={selected}
