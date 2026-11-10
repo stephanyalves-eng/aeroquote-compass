@@ -1,6 +1,6 @@
 /** Pure save-state logic for the in-memory workspace (no React, no storage). */
 export interface WorkspaceParts {
-  reference: { today?: string } & Record<string, unknown>;
+  reference: { today?: string };
   [key: string]: unknown;
 }
 /** Stable fingerprint of user work. The analysis date is excluded: it is set automatically, not by the user. */
