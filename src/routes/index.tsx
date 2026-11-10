@@ -66,6 +66,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   createApprovedDecision,
   explainRecommendation,
+  shouldMeasureBuyerConfirmedRecommendation,
+  RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT,
   type ApprovedDecision,
 } from "@/lib/rfq/recommendation";
 import { buildLandedCostBreakdown } from "@/lib/rfq/landed-cost";
@@ -775,6 +777,15 @@ function Index() {
   const validateSamples = () => {
     const next = confirmValidatedSamples(documents);
     setDocuments(next);
+    if (
+      shouldMeasureBuyerConfirmedRecommendation(next, reference, weights, auditEvents) &&
+      window.__lovableEvents?.track
+    ) {
+      window.__lovableEvents?.track?.("project.rfq_recommended_after_buyer_confirmation", {
+        synthetic: Boolean(reference.demoAnalysis),
+      });
+      record({ action: RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT });
+    }
     for (const d of next) {
       const sample = SAMPLE_CATALOG.find((x) => x.id === d.id);
       if (!sample) continue;
@@ -1571,6 +1582,20 @@ function Index() {
                       const d = documents.find((x) => x.id === id);
                       if (d && !quotationConfirmationErrors(d).length) {
                         patch(id, { confirmed: true, status: "Extracted", excluded: false });
+                        const next = documents.map((quote) =>
+                          quote.id === id
+                            ? { ...quote, confirmed: true, status: "Extracted" as const, excluded: false }
+                            : quote,
+                        );
+                        if (
+                          shouldMeasureBuyerConfirmedRecommendation(next, reference, weights, auditEvents) &&
+                          window.__lovableEvents?.track
+                        ) {
+                          window.__lovableEvents?.track?.("project.rfq_recommended_after_buyer_confirmation", {
+                            synthetic: Boolean(reference.demoAnalysis),
+                          });
+                          record({ action: RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT });
+                        }
                         record({
                           action: "Quotation confirmed",
                           documentId: id,
