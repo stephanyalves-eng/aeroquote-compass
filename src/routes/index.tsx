@@ -462,7 +462,7 @@ function Index() {
       if (!active) return;
       setUser(u ? { email: u.email ?? null, name: typeof u.user_metadata?.["full_name"] === "string" ? (u.user_metadata["full_name"] as string) : null } : null);
     };
-    // Blocked browser storage makes the auth client throw on creation: stay signed out and keep working in memory.
+    // The capability gate above prevents auth initialization entirely when storage is blocked.
     let unsubscribe = () => {};
     try {
       void supabase.auth.getSession().then(({ data }) => apply(data.session?.user)).catch(() => apply(null));
