@@ -35,4 +35,4 @@
 - Weekly recommendation-after-acknowledgement analytics fires in the confirmation handler and uses an RFQ audit milestone to deduplicate saved/reopened POs. Why: delivery corrections and amendments must not inflate RFQ counts.
 - Buyer events fire in quotation-confirmation handlers with pure gates and audit deduplication. Why: buyer/supplier milestones stay distinct.
 - Weekly charts: aggregate Cloud RPCs, audit-ID dedup, retry outbox. Why: no private data; unknown weeks stay null.
-- Pure modules: unsaved-work, draft-storage (versioned local draft), view-route (`?view=` + gated fallback), rfq-status (status/eyebrow from erpProcessSteps), scopeSyntheticEvidence. Why: testable.
+- Pure: unsaved-work, draft-storage, view-route (`?view=`), rfq-status (from erpProcessSteps). Why: testable.
