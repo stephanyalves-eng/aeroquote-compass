@@ -141,9 +141,10 @@ export function weeklyRecommendationComparison(
     currentTotal,
     previousTotal,
     difference,
-    percentage: difference === null || previousTotal === null || previousTotal === 0
-      ? null
-      : (difference / previousTotal) * 100,
+    percentage:
+      difference === null || previousTotal === null || previousTotal === 0
+        ? null
+        : (difference / previousTotal) * 100,
     partial: [...selected.rows, ...previous.rows].some((row) => row.coverage === "Partial"),
     weeks: selected.rows.length,
   };
