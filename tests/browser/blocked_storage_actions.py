@@ -29,7 +29,7 @@ async def main():
             check(f"{w} Save shows storage explanation", await page.get_by_text(MSG, exact=True).first.is_visible())
             await view(page, "rfq-setup")
             await page.get_by_role("button", name=re.compile("Extended sample")).click(); await page.wait_for_timeout(500)
-            print(await page.locator("main").inner_text(), flush=True)
+            await page.get_by_role("button", name="Replace with sample").click(); await page.wait_for_timeout(700)
             await page.get_by_role("button", name="Validate sample quotes (demo)").click(); await page.wait_for_timeout(800)
             await view(page, "comparison")
             check(f"{w} comparison works", await page.get_by_role("heading", name="Supplier Comparison").count() > 0)
