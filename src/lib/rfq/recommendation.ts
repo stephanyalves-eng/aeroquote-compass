@@ -1,4 +1,4 @@
-import { decisionInsights, validWeights, type Intelligence, type Weights } from "./intelligence";
+import { compareDocuments, decisionInsights, validWeights, type Intelligence, type Weights } from "./intelligence";
 import { classifyEligibility } from "./eligibility";
 import type { RfqReference } from "./types";
 import { DEMO_BUYER } from "./audit";
