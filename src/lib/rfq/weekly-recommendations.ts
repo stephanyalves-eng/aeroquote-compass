@@ -30,6 +30,8 @@ export function weeklyRecommendationSummary(rows: WeeklyRecommendationRow[]) {
 }
 export function weeklyRecommendationLabel(week: string) {
   return new Date(`${week}T12:00:00Z`).toLocaleDateString("en-US", {
-    month: "short", day: "numeric", timeZone: "America/Sao_Paulo",
+    month: "short",
+    day: "numeric",
+    timeZone: "America/Sao_Paulo",
   });
 }
