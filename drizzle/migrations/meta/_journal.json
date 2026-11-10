@@ -15,6 +15,13 @@
       "when": 1794273861400,
       "tag": "0001_weekly_buyer_recommendation_totals",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794280483830,
+      "tag": "0002_require_auth_for_real_recommendation_milestones",
+      "breakpoints": true
     }
   ]
 }
