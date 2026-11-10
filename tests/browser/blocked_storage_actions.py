@@ -6,6 +6,9 @@ MSG = "Your browser is blocking site storage, so sign-in is unavailable. The dem
 BLOCKED = "Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('blocked', 'SecurityError'); } });"
 results = []
 def check(name, ok, extra=""): results.append(ok); print(("PASS" if ok else "FAIL"), name, extra, flush=True)
+async def view(page, slug):
+    await page.evaluate("slug => { history.pushState({}, '', '/?view=' + slug); window.dispatchEvent(new PopStateEvent('popstate')); }", slug)
+    await page.wait_for_timeout(700)
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch(headless=True)
@@ -18,16 +21,16 @@ async def main():
             await page.add_init_script(BLOCKED)
             await page.goto(B + "/?view=rfq-setup", wait_until="networkidle")
             await page.get_by_role("button", name=re.compile("Classic sample")).click(); await page.wait_for_timeout(500)
-            await page.goto(B + "/?view=quotations", wait_until="networkidle")
+            await view(page, "quotations")
             extract = page.get_by_role("button", name="Extract quotations")
             if await extract.count(): await extract.first.click(); await page.wait_for_timeout(500)
             check(f"{w} AI extraction shows storage explanation", await page.get_by_text(MSG, exact=True).first.is_visible())
             await page.get_by_role("button", name="Save RFQ").click(); await page.wait_for_timeout(500)
             check(f"{w} Save shows storage explanation", await page.get_by_text(MSG, exact=True).first.is_visible())
-            await page.goto(B + "/?view=rfq-setup", wait_until="networkidle")
+            await view(page, "rfq-setup")
             await page.get_by_role("button", name=re.compile("Extended sample")).click(); await page.wait_for_timeout(500)
             await page.get_by_role("button", name="Validate sample quotes (demo)").click(); await page.wait_for_timeout(800)
-            await page.goto(B + "/?view=comparison", wait_until="networkidle"); await page.wait_for_timeout(500)
+            await view(page, "comparison")
             check(f"{w} comparison works", await page.get_by_role("heading", name="Supplier Comparison").count() > 0)
             async with page.expect_download() as d: await page.get_by_role("button", name="CSV", exact=True).first.click()
             check(f"{w} CSV export works", (await d.value).suggested_filename.endswith(".csv"))
