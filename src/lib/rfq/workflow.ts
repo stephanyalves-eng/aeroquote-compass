@@ -28,6 +28,8 @@ export const newReference = (): RfqReference => ({
   description: "", category: "", requiredDeliveryDate: "", deliveryLocation: "",
   currency: "USD", incumbentSupplier: "", targetCost: null,
 });
+/** Brand-new RFQ for the UI: annual volume starts empty (NaN) so no calculation runs on a value the buyer did not enter. */
+export const blankRfqReference = (): RfqReference => ({ ...newReference(), annualVolume: Number.NaN });
 export function referenceErrors(ref: RfqReference): string[] {
   const errors: string[] = [];
   for (const [label, value] of [["RFQ number", ref.rfqNumber], ["Part number", ref.partNumber], ["Revision", ref.revision], ["Required certification", ref.requiredCertification], ["Today's date", ref.today]]) {
