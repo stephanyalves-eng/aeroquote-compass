@@ -1418,7 +1418,7 @@ function Index() {
         Skip to content
       </a>
       <header className="sticky top-0 z-40 bg-surface-inverse text-text-inverse">
-        <div className="flex items-center gap-2 px-3 py-2 sm:px-5 md:py-2.5">
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 sm:flex-nowrap sm:px-5 md:py-2.5">
           <MobileNav
             current={history ? -2 : step}
             disabled={stepDisabled}
@@ -1434,7 +1434,7 @@ function Index() {
               <Breadcrumb trail={breadcrumb} />
             </div>
           </div>
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+          <div className="flex w-full min-w-0 items-center justify-end gap-2 sm:w-auto sm:flex-1">
             <GlobalSearch
               entries={searchEntries}
               onSearch={(q) => globalSearch(searchEntries, q)}

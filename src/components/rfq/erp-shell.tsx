@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   LayoutDashboard,
   FileText,
@@ -263,7 +263,15 @@ export function GlobalSearch({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const listId = useId();
   const results = onSearch(query);
+  const choose = (entry: SearchEntry) => {
+    onSelect(entry);
+    setQuery("");
+    setOpen(false);
+    setActiveIndex(-1);
+  };
   void entries;
   return (
     <div className="relative min-w-0 flex-1 sm:max-w-xs">
@@ -276,36 +284,59 @@ export function GlobalSearch({
         type="search"
         role="combobox"
         aria-expanded={open && results.length > 0}
+        aria-controls={open && results.length > 0 ? listId : undefined}
+        aria-activedescendant={
+          open && results[activeIndex] ? `${listId}-${activeIndex}` : undefined
+        }
         aria-label="Global search: RFQ, supplier, quote, part number, PO, drawing or revision"
         placeholder="Search RFQ, supplier, PO…"
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);
+          setActiveIndex(-1);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            setOpen(false);
+            setActiveIndex(-1);
+          } else if ((event.key === "ArrowDown" || event.key === "ArrowUp") && results.length) {
+            event.preventDefault();
+            setOpen(true);
+            setActiveIndex((index) =>
+              event.key === "ArrowDown"
+                ? (index + 1) % results.length
+                : (index <= 0 ? results.length : index) - 1,
+            );
+          } else if (event.key === "Enter" && open && results[activeIndex]) {
+            event.preventDefault();
+            const entry = results[activeIndex];
+            if (entry) choose(entry);
+          }
         }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        className="min-h-11 w-full rounded-sm border border-text-inverse/20 bg-text-inverse/10 pl-9 pr-3 text-sm text-text-inverse placeholder:text-text-inverse/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring md:min-h-9"
+        className="min-h-11 min-w-0 w-full rounded-sm border border-text-inverse/20 bg-text-inverse/10 pl-9 pr-3 text-sm text-text-inverse placeholder:text-text-inverse/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring md:min-h-9"
       />
       {open && results.length > 0 && (
         <ul
           role="listbox"
+          id={listId}
           aria-label="Search results"
           className="absolute inset-x-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-sm border border-border-default bg-surface-card py-1 text-foreground shadow-none"
         >
-          {results.map((r) => (
+          {results.map((r, index) => (
             <li key={r.id}>
               <button
                 type="button"
                 role="option"
-                aria-selected="false"
+                id={`${listId}-${index}`}
+                aria-selected={activeIndex === index}
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  onSelect(r);
-                  setQuery("");
-                  setOpen(false);
                 }}
-                className="flex min-h-11 w-full items-center gap-3 px-3 text-left hover:bg-surface-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring"
+                onClick={() => choose(r)}
+                className={`flex min-h-11 w-full items-center gap-3 px-3 text-left hover:bg-surface-sunken focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring ${activeIndex === index ? "bg-surface-sunken" : ""}`}
               >
                 <span className="w-20 shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-text-tertiary">
                   {r.kind}
