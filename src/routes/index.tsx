@@ -1293,7 +1293,7 @@ function Index() {
     investigationConfirmed: investigations.length > 0 && investigations.every((i) => i.confirmed),
   });
   const pendingBlockers = pendingReviewBlockers(documents, reference);
-  const operationInput = {
+  const operationInput = scopeSyntheticEvidence({
     reference,
     documents,
     poState,
@@ -1302,7 +1302,7 @@ function Index() {
     assessments,
     investigations: documents.length ? investigations : [],
     approved: Boolean(poContext),
-  };
+  });
   const operationItems = useMemo(
     () => operationalSummary(operationInput),
     [reference, documents, poState, gate, alerts, assessments, investigations, poContext],
@@ -1601,7 +1601,7 @@ function Index() {
                 )}
                 {step === 0 && (
                   <OperationalPanel
-                    items={operationalSummary({
+                    items={operationalSummary(scopeSyntheticEvidence({
                       reference,
                       documents,
                       poState,
@@ -1610,7 +1610,7 @@ function Index() {
                       assessments,
                       investigations: documents.length ? investigations : [],
                       approved: Boolean(poContext),
-                    })}
+                    }))}
                     onSelect={go}
                   />
                 )}
