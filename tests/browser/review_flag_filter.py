@@ -25,9 +25,9 @@ async def main():
         await page.get_by_text("No flagged fields in this quotation.", exact=True).wait_for()
         await page.get_by_role("button", name="Flag all fields", exact=True).click()
         assert await rows.count() == 30
-        await page.get_by_role("button", name="Clear follow-up for Supplier name", exact=True).click()
+        await page.get_by_role("button", name="Clear follow-up for Supplier", exact=True).click()
         assert await rows.count() == 29
-        assert await page.get_by_label("Supplier name", exact=True).count() == 0
+        assert await page.get_by_label("Supplier", exact=True).count() == 0
         await toggle.click()
         assert await rows.count() == 30
         await toggle.click()
