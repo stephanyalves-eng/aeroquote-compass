@@ -1,3 +1,4 @@
+import { DEMO_AUDIT_ACTOR } from "@/lib/rfq/identity";
 import { useRef, useState } from "react";
 import { Check, Info, FileText, ArrowRight, SlidersHorizontal, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -313,7 +314,7 @@ export function RecommendationPanel({
         >
           <DialogTitle>Record sourcing decision</DialogTitle>
           <DialogDescription>
-            Demo approval by Marina Costa (Demo buyer). Only buyer-confirmed eligible suppliers may
+            Approval recorded as {actor ?? DEMO_AUDIT_ACTOR}. Only buyer-confirmed eligible suppliers may
             be selected.
           </DialogDescription>
           <Field label="Approved supplier">

@@ -1,3 +1,4 @@
+import { DEMO_AUDIT_ACTOR } from "@/lib/rfq/identity";
 import { useState } from "react";
 import { PoConfirmation } from "./po-confirmation";
 import type { ConfirmationInput } from "@/lib/rfq/po-confirmation";
@@ -440,7 +441,7 @@ export function PoWorkspace({
           </p>
           <p className="mt-1 text-xs text-text-secondary">
             {state.lifecycle?.updatedAt ?? "Not yet recorded"} ·{" "}
-            {state.lifecycle?.actor ?? "Marina Costa (Demo buyer)"}
+            {state.lifecycle?.actor ?? DEMO_AUDIT_ACTOR}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

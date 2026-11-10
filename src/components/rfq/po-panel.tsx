@@ -1,3 +1,4 @@
+import { DEMO_AUDIT_ACTOR } from "@/lib/rfq/identity";
 import { useEffect, useState } from "react";
 import {
   draftErrors,
@@ -527,7 +528,7 @@ export function PoPanel({
         <DialogContent className="w-[calc(100%-2rem)] rounded-md">
           <DialogTitle>Accept discrepancy with justification</DialogTitle>
           <DialogDescription>
-            {accept?.fieldLabel} · Marina Costa (Demo buyer). This does not alter the purchase
+            {accept?.fieldLabel} · {actor ?? DEMO_AUDIT_ACTOR}. This does not alter the purchase
             order.
           </DialogDescription>
           <Field label="Buyer justification">

@@ -156,7 +156,6 @@ import { QuoteExplorer } from "@/components/rfq/quote-explorer-panel";
 import { ConfigurationPanel, GatePanel, RevisionStrip } from "@/components/rfq/configuration-panel";
 import { AuditTrail } from "@/components/rfq/audit-trail";
 import { InvestigationPanel } from "@/components/rfq/investigation-panel";
-import { DEMO_BUYER } from "@/lib/rfq/audit";
 const CASES = demoInvestigationCases();
 const initialInvestigations = () =>
   CASES.map((c) => investigateFailure(c.failure, c.snapshots, c.registry, c.manufacturedOn));
@@ -286,7 +285,7 @@ function Index() {
       at: configAt,
       timestamp: reference.demoAnalysis ? `${configAt}T12:00:00.000Z` : new Date().toISOString(),
       checkType,
-      actor: actor,
+      actor,
       supplier,
       partNumber: reference.partNumber,
       quoteRevision,
@@ -544,14 +543,14 @@ function Index() {
                   status: "Superseded" as const,
                   revision: poState.lifecycle.revision,
                   timestamp: poTimestamp(),
-                  actor: actor,
+                  actor,
                 },
               ]
             : (poState.lifecycle?.history ?? []),
           phase: "Draft" as const,
           revision: (poState.lifecycle?.revision ?? 0) + 1,
           updatedAt: poTimestamp(),
-          actor: actor,
+          actor,
         },
       };
       setPoState(next);
@@ -565,7 +564,7 @@ function Index() {
       revision: (poState.lifecycle?.revision ?? 0) + 1,
       issued: structuredClone(po),
       updatedAt: poTimestamp(),
-      actor: actor,
+      actor,
       history: [
         ...(poState.lifecycle?.history ?? []),
         ...(poState.po
@@ -575,7 +574,7 @@ function Index() {
                 status: "Superseded" as const,
                 revision: poState.lifecycle?.revision ?? 1,
                 timestamp: poTimestamp(),
-                actor: actor,
+                actor,
               },
             ]
           : []),
@@ -801,6 +800,7 @@ function Index() {
         id,
         justification,
         reference.demoAnalysis ? `${reference.today}T12:00:00.000Z` : new Date().toISOString(),
+        actor,
       );
       const explanation = explainRecommendation(results, reference, weights);
       setApprovedDecision(decision);
@@ -991,7 +991,7 @@ function Index() {
             source: "Demo pre-extraction (synthetic, no AI call)",
             confidences: d.original?.confidence ?? {},
           },
-        }),
+        }, actor),
       ),
     );
     setStep(2);
