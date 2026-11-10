@@ -22,7 +22,7 @@ async def main():
         await search.press("ArrowDown")
         await page.get_by_role("listbox", name="Search results").get_by_role("option", selected=True).wait_for()
         await search.press("Enter")
-        await page.get_by_role("heading", name="RFQ Setup", exact=True).wait_for()
+        await page.get_by_role("heading", name="RFQ Setup", exact=True).first.wait_for()
         assert await search.input_value() == ""
         await search.fill("RFQ-24410")
         await search.press("Escape")
