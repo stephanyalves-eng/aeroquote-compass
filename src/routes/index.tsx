@@ -202,7 +202,7 @@ interface DraftWorkspace {
   status?: RfqStatus | null;
   approvedDecision?: ApprovedDecision;
   poState?: PoState;
-  registry?: DocumentRevision[];
+  registry?: ReturnType<typeof demoRevisionRegistry>;
   snapshots?: ConfigurationSnapshot[];
   assessments?: ImpactAssessment[];
   investigations?: FailureInvestigation[];
