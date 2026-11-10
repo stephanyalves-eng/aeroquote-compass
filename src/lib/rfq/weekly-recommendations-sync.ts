@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { isBrowserStorageAvailable } from "./browser-storage";
 import { outboxAction } from "./telemetry-outbox";
 const KEY = "aeroquote-weekly-recommendations-outbox";
 interface Milestone {
@@ -30,6 +31,8 @@ function store(rows: Milestone[]) {
   }
 }
 export async function syncWeeklyRecommendations(milestone?: Milestone) {
+  // Even RPC access creates the generated client's auth library. Skip it entirely.
+  if (!isBrowserStorageAvailable()) return false;
   const rows = pending();
   if (milestone && !rows.some((row) => row.id === milestone.id)) rows.push(milestone);
   store(rows);

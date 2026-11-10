@@ -3,6 +3,7 @@ import { resolveView, viewSlug, HISTORY_VIEW } from "@/lib/rfq/view-route";
 import { browserStorage, readDraft, writeDraft, clearDraft, reviveReferenceNumbers, shouldWarnBeforeUnload } from "@/lib/rfq/draft-storage";
 import { suggestedRfqStatus, rfqStatusMismatch, viewProgressLabel } from "@/lib/rfq/rfq-status";
 import { identityLabel, ownerLabel, auditActor } from "@/lib/rfq/identity";
+import { isBrowserStorageAvailable, STORAGE_BLOCKED_MESSAGE } from "@/lib/rfq/browser-storage";
 import { workspaceHasRfq } from "@/lib/rfq/unsaved-work";
 import { blankRfqReference } from "@/lib/rfq/workflow";
 import { useServerFn } from "@tanstack/react-start";
@@ -456,11 +457,12 @@ function Index() {
   }, [fingerprint, workspaceUnsaved, draftReady, savedId]);
   useEffect(() => {
     let active = true;
+    if (!isBrowserStorageAvailable()) return;
     const apply = (u: { email?: string | null; user_metadata?: Record<string, unknown> } | null | undefined) => {
       if (!active) return;
       setUser(u ? { email: u.email ?? null, name: typeof u.user_metadata?.["full_name"] === "string" ? (u.user_metadata["full_name"] as string) : null } : null);
     };
-    // Blocked browser storage makes the auth client throw on creation: stay signed out and keep working in memory.
+    // The capability gate above prevents auth initialization entirely when storage is blocked.
     let unsubscribe = () => {};
     try {
       void supabase.auth.getSession().then(({ data }) => apply(data.session?.user)).catch(() => apply(null));
@@ -1085,6 +1087,11 @@ function Index() {
   };
   const process = async (id?: string) => {
     if (processing.current) return;
+    if (!isBrowserStorageAvailable()) {
+      setNotice(STORAGE_BLOCKED_MESSAGE);
+      setHistory(true);
+      return;
+    }
     if (!validReference) {
       setNotice(referenceErrors(reference).join(" "));
       setStep(0);
@@ -1185,6 +1192,11 @@ function Index() {
     }
   };
   const saveCurrent = async () => {
+    if (!isBrowserStorageAvailable()) {
+      setNotice(STORAGE_BLOCKED_MESSAGE);
+      setHistory(true);
+      return;
+    }
     const data = await supabase.auth.getSession().then((r) => r.data, () => ({ session: null }));
     if (!data.session) {
       setNotice("Sign in to save this analysis privately.");
