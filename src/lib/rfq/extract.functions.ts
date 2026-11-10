@@ -1,14 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { ExtractedQuote } from "./types";
 import { extractionSchema } from "./extraction-schema";
-
-const Input = z.object({
-  text: z.string().max(60000).optional(),
-  pdfBase64: z.string().max(8_000_000).optional(),
-  today: z.string().max(10),
-  fileName: z.string().max(255).optional(),
-});
+import { extractionInput, EXTRACTION_LIMITS } from "./extraction-limits";
 
 const INSTRUCTIONS = `You extract data from aerospace supplier quotations (any language) into JSON.
 Return ONLY a JSON object, no prose, no markdown fences, with exactly these keys:
@@ -33,10 +27,11 @@ function parseJson(text: string): ExtractedQuote {
 }
 
 export const extractQuote = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => Input.parse(d))
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => extractionInput.parse(d))
   .handler(async ({ data }): Promise<{ quote: ExtractedQuote | null; error: string | null }> => {
     if (!data.text?.trim() && !data.pdfBase64) return { quote: null, error: "Empty quote." };
-    const apiKey = process.env['LOVABLE_API_KEY'];
+    const apiKey = process.env["LOVABLE_API_KEY"];
     if (!apiKey) return { quote: null, error: "AI is not configured." };
     const { createOpenAI } = await import("@ai-sdk/openai");
     const { streamText, Output } = await import("ai");
@@ -49,15 +44,28 @@ export const extractQuote = createServerFn({ method: "POST" })
       fetch: runId.fetch,
     });
     const content: Array<
-      { type: "text"; text: string } | { type: "file"; data: string; mediaType: string; filename: string }
-    > = [{ type: "text", text: `Today is ${data.today}. Extract this quotation:\n\n${data.text ?? ""}` }];
-    if (data.pdfBase64) content.push({ type: "file", data: data.pdfBase64, mediaType: "application/pdf", filename: data.fileName ?? "quotation.pdf" });
+      | { type: "text"; text: string }
+      | { type: "file"; data: string; mediaType: string; filename: string }
+    > = [
+      {
+        type: "text",
+        text: `Today is ${data.today}. Extract this quotation:\n\n${data.text ?? ""}`,
+      },
+    ];
+    if (data.pdfBase64)
+      content.push({
+        type: "file",
+        data: data.pdfBase64,
+        mediaType: "application/pdf",
+        filename: data.fileName ?? "quotation.pdf",
+      });
     try {
       const result = streamText({
         model: provider.responses("openai/gpt-6-astra"),
         instructions: INSTRUCTIONS,
         output: Output.object({ schema: extractionSchema }),
         messages: [{ role: "user", content }],
+        maxOutputTokens: EXTRACTION_LIMITS.outputTokens,
         maxRetries: 0,
         providerOptions: {
           openai: {
@@ -72,10 +80,15 @@ export const extractQuote = createServerFn({ method: "POST" })
       const text = await result.text;
       return { quote: parseJson(text), error: null };
     } catch (err) {
-      console.error("extractQuote failed", err);
       const status = (err as { statusCode?: number }).statusCode;
-      if (status === 429) return { quote: null, error: "Too many requests. Please wait a moment and try again." };
-      if (status === 402) return { quote: null, error: "AI credits exhausted. Add credits in Settings → Plans & credits." };
+      console.error("extractQuote failed", { status });
+      if (status === 429)
+        return { quote: null, error: "Too many requests. Please wait a moment and try again." };
+      if (status === 402)
+        return {
+          quote: null,
+          error: "AI credits exhausted. Add credits in Settings → Plans & credits.",
+        };
       if (status === 403) return { quote: null, error: "AI access is blocked for this workspace." };
       return { quote: null, error: "Extraction failed. Check the document and reprocess it." };
     }
