@@ -36,6 +36,14 @@ export interface OperationItem {
   action: string;
   step: number;
 }
+/**
+ * Synthetic demo investigations, revision alerts and configuration blocks only count as the
+ * buyer's items when a demo sample is loaded; a user's own RFQ never inherits them.
+ */
+export function scopeSyntheticEvidence(input: OperationInput): OperationInput {
+  if (input.reference.demoAnalysis) return input;
+  return { ...input, investigations: [], alerts: [], assessments: [], configurationBlocked: false };
+}
 export function savedOperationalSummary(
   snapshot: {
     reference: RfqReference;
@@ -79,7 +87,7 @@ export function savedOperationalSummary(
       }),
     ),
   );
-  return operationalSummary({
+  return operationalSummary(scopeSyntheticEvidence({
     reference: {
       ...snapshot.reference,
       today: snapshot.reference.demoAnalysis ? snapshot.reference.today : today,
@@ -91,7 +99,7 @@ export function savedOperationalSummary(
     assessments: config?.assessments,
     investigations: config?.investigations,
     approved: Boolean(snapshot.approvedDecision),
-  });
+  }));
 }
 export type AttentionSeverity = "Critical" | "High" | "Medium";
 export interface AttentionItem {

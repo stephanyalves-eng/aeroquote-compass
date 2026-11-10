@@ -24,7 +24,9 @@ import { requiresAttention } from "@/lib/rfq/operations";
 import { MAIN_STEPS, TRACEABILITY, TRACE_OFFSET } from "@/lib/rfq/navigation";
 import { ScenarioPanel } from "@/components/rfq/scenario-panel";
 import { OperationalPanel } from "@/components/rfq/operational-panel";
-import { operationalSummary } from "@/lib/rfq/operations";
+import { firstInvalidField } from "@/lib/rfq/reference-fields";
+import { operationalSummary, scopeSyntheticEvidence } from "@/lib/rfq/operations";
+import { workspaceFingerprint, workspaceSaveStatus, hasUnsavedWork, SAVE_STATUS_LABEL, type SaveBaseline } from "@/lib/rfq/unsaved-work";
 import { bulkConfirmPlan } from "@/lib/rfq/bulk-confirm";
 import { pendingReviewBlockers } from "@/lib/rfq/presentation";
 import { SaMonogram } from "@/assets/sa-monogram";
@@ -339,17 +341,51 @@ function Index() {
     };
   }, [queryClient]);
   const [saving, setSaving] = useState(false);
+  const [showSetupErrors, setShowSetupErrors] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "unsaved" | "failed">(
     "idle",
   );
-  const skipDirty = useRef(true);
+  const fingerprint = useMemo(
+    () =>
+      workspaceFingerprint({
+        reference,
+        documents,
+        weights,
+        status,
+        approvedDecision,
+        poState,
+        registry,
+        snapshots,
+        assessments,
+        investigations,
+        auditEvents,
+      }),
+    [reference, documents, weights, status, approvedDecision, poState, registry, snapshots, assessments, investigations, auditEvents],
+  );
+  const [baseline, setBaseline] = useState<SaveBaseline>({ fingerprint: null, saved: false });
+  /** null = baseline settled; boolean = capture the next workspace state as baseline (true = saved). */
+  const rebaseline = useRef<boolean | null>(false);
+  const [baselineTick, setBaselineTick] = useState(0);
+  const resetBaseline = (saved: boolean) => {
+    rebaseline.current = saved;
+    setBaselineTick((t) => t + 1);
+  };
   useEffect(() => {
-    if (skipDirty.current) {
-      skipDirty.current = false;
-      return;
-    }
-    setSaveState((s) => (s === "saving" ? s : "unsaved"));
-  }, [documents, reference, weights, approvedDecision, poState, registry, assessments]);
+    if (rebaseline.current === null) return;
+    setBaseline({ fingerprint, saved: rebaseline.current });
+    rebaseline.current = null;
+  }, [fingerprint, baselineTick]);
+  const unsavedWork = hasUnsavedWork(fingerprint, baseline, poDraftDirty);
+  const workspaceStatus = workspaceSaveStatus(fingerprint, baseline, poDraftDirty);
+  useEffect(() => {
+    if (!unsavedWork) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [unsavedWork]);
   const extract = useServerFn(extractQuote);
   const save = useServerFn(saveHistory);
   useEffect(() => setReference((r) => ({ ...r, today: r.today || localToday() })), []);
@@ -826,7 +862,6 @@ function Index() {
     setSavedId(undefined);
     setNotice("");
     setUndoDocs(null);
-    skipDirty.current = true;
     setSaveState("idle");
   };
   const loadExtended = () => {
@@ -1072,8 +1107,8 @@ function Index() {
       });
       setSavedId(result.id);
       setNotice("");
-      setSaveState("saved");
-      skipDirty.current = true;
+      setSaveState("idle");
+      setBaseline({ fingerprint, saved: true });
     } catch (e) {
       setSaveState("failed");
       setNotice(e instanceof Error ? e.message : "Could not save this analysis.");
@@ -1096,8 +1131,8 @@ function Index() {
         )
         .catch(() => setNotice("Weekly totals will retry automatically."));
     reopening.current = true;
-    skipDirty.current = true;
-    setSaveState("saved");
+    setSaveState("idle");
+    resetBaseline(true);
     setAuditEvents(snapshot.auditEvents ?? []);
     setReference(snapshot.reference);
     setDocuments(snapshot.documents);
@@ -1293,7 +1328,7 @@ function Index() {
     investigationConfirmed: investigations.length > 0 && investigations.every((i) => i.confirmed),
   });
   const pendingBlockers = pendingReviewBlockers(documents, reference);
-  const operationInput = {
+  const operationInput = scopeSyntheticEvidence({
     reference,
     documents,
     poState,
@@ -1302,7 +1337,7 @@ function Index() {
     assessments,
     investigations: documents.length ? investigations : [],
     approved: Boolean(poContext),
-  };
+  });
   const operationItems = useMemo(
     () => operationalSummary(operationInput),
     [reference, documents, poState, gate, alerts, assessments, investigations, poContext],
@@ -1366,7 +1401,14 @@ function Index() {
           label: "Continue to quotes",
           run: () => {
             if (validReference) go(1);
-            else setNotice(referenceErrors(reference).join(" "));
+            else {
+              setNotice(referenceErrors(reference).join(" "));
+              setShowSetupErrors(true);
+              const first = firstInvalidField(reference);
+              requestAnimationFrame(() =>
+                document.querySelector<HTMLElement>(`[data-setup-field="${first}"][aria-invalid="true"]`)?.focus(),
+              );
+            }
           },
           reason: null,
         }
@@ -1406,9 +1448,7 @@ function Index() {
         ? "Saved"
         : saveState === "failed"
           ? "Save failed"
-          : saveState === "unsaved"
-            ? "Unsaved changes"
-            : "Not saved yet";
+          : SAVE_STATUS_LABEL[workspaceStatus];
   const plan = bulkTarget ? bulkConfirmPlan(documents, reference, bulkTarget.id) : null;
   const viewLabel =
     step === 9
@@ -1432,8 +1472,12 @@ function Index() {
     setHistory(false);
     setStatus("Draft");
     setNotice("");
-    skipDirty.current = true;
+    reopening.current = true;
+    setShowSetupErrors(false);
+    setApprovedDecision(undefined);
+    setPoState(emptyPoState());
     setSaveState("idle");
+    resetBaseline(false);
   };
   const openHistory = () => {
     setHistory(!history);
@@ -1485,7 +1529,7 @@ function Index() {
           busy={busy}
         />
         <div className="min-w-0 flex-1">
-          <div className="border-b border-border-default bg-surface-raised">
+          <div role="region" aria-label="Current RFQ" className="border-b border-border-default bg-surface-raised">
             <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2 sm:px-8">
               <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="font-mono text-xs">{reference.rfqNumber || "NEW RFQ"}</span>
@@ -1493,7 +1537,7 @@ function Index() {
                 <span
                   role="status"
                   aria-live="polite"
-                  className={`text-xs ${saveState === "failed" ? "text-error" : saveState === "unsaved" ? "text-warning" : saveState === "saved" ? "text-success" : "text-text-secondary"}`}
+                  className={`text-xs ${saveState === "failed" ? "text-error" : saveState === "saving" ? "text-text-secondary" : workspaceStatus === "unsaved" ? "text-warning" : workspaceStatus === "saved" ? "text-success" : "text-text-secondary"}`}
                 >
                   {saveLabel}
                 </span>
@@ -1601,7 +1645,7 @@ function Index() {
                 )}
                 {step === 0 && (
                   <OperationalPanel
-                    items={operationalSummary({
+                    items={operationalSummary(scopeSyntheticEvidence({
                       reference,
                       documents,
                       poState,
@@ -1610,7 +1654,7 @@ function Index() {
                       assessments,
                       investigations: documents.length ? investigations : [],
                       approved: Boolean(poContext),
-                    })}
+                    }))}
                     onSelect={go}
                   />
                 )}
@@ -1625,6 +1669,7 @@ function Index() {
                 {step === 0 && (
                   <Setup
                     reference={reference}
+                    showErrors={showSetupErrors}
                     onChange={(r) => {
                       setReference(r);
                       if (status !== "Draft") setStatus("Draft");

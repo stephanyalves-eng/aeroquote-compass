@@ -47,7 +47,7 @@ export function PoStatusBadge({
 }) {
   return (
     <span
-      className={`inline-flex rounded-sm border px-2 py-1 font-mono text-[11px] uppercase ${blocker ? "border-error bg-error-bg text-error" : review ? "border-border-default bg-warning-bg text-warning" : confirmed ? "border-border-default bg-success-bg text-success" : "border-border-default bg-surface-sunken text-text-secondary"}`}
+      className={`inline-flex rounded-sm border px-2 py-1 font-mono text-[11px] uppercase ${blocker ? "border-error bg-error-bg text-error" : review ? "border-border-default bg-warning-bg text-warning-tag" : confirmed ? "border-border-default bg-success-bg text-success-tag" : "border-border-default bg-surface-sunken text-text-secondary"}`}
     >
       {text}
     </span>
