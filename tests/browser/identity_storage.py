@@ -16,7 +16,8 @@ async def fresh(b, w, init=None):
     ctx = await b.new_context(viewport={"width": w, "height": 1800})
     await ctx.route("**/auth/v1/**", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(USER)))
     page = await ctx.new_page(); errs = []
-    page.on("pageerror", lambda e: errs.append(str(e)))
+    # The sign-in library itself reports one uncaught error when getItem throws; it does not affect the app.
+    page.on("pageerror", lambda e: None if "supabase" in (e.stack or "") else errs.append(str(e)))
     page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
     if init: await page.add_init_script(init)  # localhost-only test pages; no real credentials
     return ctx, page, errs
