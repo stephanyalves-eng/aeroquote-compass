@@ -186,7 +186,11 @@ export const Route = createFileRoute("/")({
 });
 function HydratedIndex() {
   const { weeklyState } = Route.useLoaderData();
-  return <HydrationBoundary state={weeklyState}><Index /></HydrationBoundary>;
+  return (
+    <HydrationBoundary state={weeklyState}>
+      <Index />
+    </HydrationBoundary>
+  );
 }
 const steps: string[] = [...MAIN_STEPS.map((m) => m.label), ...TRACEABILITY];
 function Index() {
