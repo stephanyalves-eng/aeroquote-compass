@@ -77,12 +77,12 @@ export function decisionErrors(list: Intelligence[], recommended: Intelligence |
   if (selected && recommended && selected !== recommended && justification.trim().length < 20) errors.push("An override requires a written justification of at least 20 characters.");
   return errors;
 }
-export function createApprovedDecision(list: Intelligence[], reference: RfqReference, weights: Weights, supplierId: string, justification: string, timestamp: string): ApprovedDecision {
+export function createApprovedDecision(list: Intelligence[], reference: RfqReference, weights: Weights, supplierId: string, justification: string, timestamp: string, actor: string = DEMO_BUYER): ApprovedDecision {
   const recommended = explainRecommendation(list, reference, weights).recommended;
   const errors = decisionErrors(list, recommended, supplierId, justification, weights);
   if (errors.length) throw new Error(errors.join(" "));
   const supplier = list.find((a) => a.document.id === supplierId);
   if (!supplier || !recommended) throw new Error("No eligible decision is available.");
-  return { supplierId, supplier: supplier.name, recommendedSupplier: recommended.name, override: supplier !== recommended, justification: justification.trim(), weights: { ...weights }, timestamp, actor: DEMO_BUYER };
+  return { supplierId, supplier: supplier.name, recommendedSupplier: recommended.name, override: supplier !== recommended, justification: justification.trim(), weights: { ...weights }, timestamp, actor };
 }
 export function costChartDomain(list: Intelligence[], unit = false): [number, number] { return [0, Math.max(1, ...list.map((a) => (unit ? a.baseline.unitPriceUsd : a.annualLanded) ?? 0)) * 1.12]; }

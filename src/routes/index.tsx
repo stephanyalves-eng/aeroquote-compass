@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { resolveView, viewSlug, HISTORY_VIEW } from "@/lib/rfq/view-route";
 import { browserStorage, readDraft, writeDraft, clearDraft, reviveReferenceNumbers, shouldWarnBeforeUnload } from "@/lib/rfq/draft-storage";
 import { suggestedRfqStatus, rfqStatusMismatch, viewProgressLabel } from "@/lib/rfq/rfq-status";
-import { identityLabel, ownerLabel } from "@/lib/rfq/identity";
+import { identityLabel, ownerLabel, auditActor } from "@/lib/rfq/identity";
 import { workspaceHasRfq } from "@/lib/rfq/unsaved-work";
 import { blankRfqReference } from "@/lib/rfq/workflow";
 import { useServerFn } from "@tanstack/react-start";
@@ -237,6 +237,7 @@ function Index() {
   const [draftRestored, setDraftRestored] = useState(false);
   const [storedFingerprint, setStoredFingerprint] = useState<string | null>(null);
   const [user, setUser] = useState<{ email: string | null; name: string | null } | null>(null);
+  const actor = auditActor(user);
   const [busy, setBusy] = useState(false);
   const processing = useRef(false);
   const [notice, setNotice] = useState("");
@@ -285,7 +286,7 @@ function Index() {
       at: configAt,
       timestamp: reference.demoAnalysis ? `${configAt}T12:00:00.000Z` : new Date().toISOString(),
       checkType,
-      actor: DEMO_BUYER,
+      actor: actor,
       supplier,
       partNumber: reference.partNumber,
       quoteRevision,
@@ -331,7 +332,7 @@ function Index() {
         timestamp: reference.demoAnalysis
           ? `${reference.today}T12:00:00.000Z`
           : new Date().toISOString(),
-      }),
+      }, actor),
     ]);
   const measureBuyerRecommendation = (next: QuoteDocument[]) => {
     if (
@@ -344,7 +345,7 @@ function Index() {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
       action: RFQ_BUYER_CONFIRMED_RECOMMENDATION_EVENT,
-    });
+    }, actor);
     setAuditEvents((events) => [...events, milestone]);
     void syncWeeklyRecommendations({ id: milestone.id, synthetic: Boolean(reference.demoAnalysis) })
       .then(() => queryClient.invalidateQueries({ queryKey: weeklyRecommendationsQuery.queryKey }))
@@ -530,11 +531,11 @@ function Index() {
       )
         return;
       const next = {
-        ...startPoDraft(po, poTimestamp(), DEMO_BUYER),
+        ...startPoDraft(po, poTimestamp(), actor),
         supplierConfirmations: poState.supplierConfirmations,
         tolerances: { ...poState.tolerances },
         lifecycle: {
-          ...startPoDraft(po, poTimestamp(), DEMO_BUYER).lifecycle,
+          ...startPoDraft(po, poTimestamp(), actor).lifecycle,
           history: poState.lifecycle?.issued
             ? [
                 ...poState.lifecycle.history,
@@ -543,14 +544,14 @@ function Index() {
                   status: "Superseded" as const,
                   revision: poState.lifecycle.revision,
                   timestamp: poTimestamp(),
-                  actor: DEMO_BUYER,
+                  actor: actor,
                 },
               ]
             : (poState.lifecycle?.history ?? []),
           phase: "Draft" as const,
           revision: (poState.lifecycle?.revision ?? 0) + 1,
           updatedAt: poTimestamp(),
-          actor: DEMO_BUYER,
+          actor: actor,
         },
       };
       setPoState(next);
@@ -564,7 +565,7 @@ function Index() {
       revision: (poState.lifecycle?.revision ?? 0) + 1,
       issued: structuredClone(po),
       updatedAt: poTimestamp(),
-      actor: DEMO_BUYER,
+      actor: actor,
       history: [
         ...(poState.lifecycle?.history ?? []),
         ...(poState.po
@@ -574,7 +575,7 @@ function Index() {
                 status: "Superseded" as const,
                 revision: poState.lifecycle?.revision ?? 1,
                 timestamp: poTimestamp(),
-                actor: DEMO_BUYER,
+                actor: actor,
               },
             ]
           : []),
@@ -680,6 +681,7 @@ function Index() {
         action,
         justification,
         poTimestamp(),
+        actor,
       );
       setPoState({ ...poState, resolutions, released: false });
       record(poResolutionAudit(poState.result, poState.po, id, action, justification));
@@ -707,7 +709,7 @@ function Index() {
             poState,
             "Release",
             poTimestamp(),
-            DEMO_BUYER,
+            actor,
             Boolean(poContext),
             gateBlocked(gate),
           )
@@ -735,7 +737,7 @@ function Index() {
         poState,
         action,
         poTimestamp(),
-        DEMO_BUYER,
+        actor,
         Boolean(poContext),
         gateBlocked(gate),
       );
@@ -761,7 +763,7 @@ function Index() {
   };
   const saveSupplierConfirmation = (input: ConfirmationInput) => {
     try {
-      const next = recordSupplierConfirmation(poState, input, poTimestamp(), DEMO_BUYER);
+      const next = recordSupplierConfirmation(poState, input, poTimestamp(), actor);
       setPoState(next);
       record(supplierConfirmationAudit(poState, next));
       if (
@@ -1352,7 +1354,7 @@ function Index() {
     justification: string,
   ) => {
     try {
-      const a = createImpactAssessment(alert, level, justification, DEMO_BUYER, poTimestamp());
+      const a = createImpactAssessment(alert, level, justification, actor, poTimestamp());
       setAssessments((xs) => [...xs, a]);
       record({
         action: "Impact assessment recorded",
@@ -1372,7 +1374,7 @@ function Index() {
     try {
       setInvestigations((xs) =>
         xs.map((i) =>
-          i.failureId === failureId ? confirmClassification(i, c, DEMO_BUYER, note) : i,
+          i.failureId === failureId ? confirmClassification(i, c, actor, note) : i,
         ),
       );
       record({
@@ -1990,7 +1992,7 @@ function Index() {
                     onDraftDirty={setPoDraftDirty}
                     onEdit={(po) => {
                       try {
-                        const next = savePoDraft(poState, po, poTimestamp(), DEMO_BUYER);
+                        const next = savePoDraft(poState, po, poTimestamp(), actor);
                         setPoState(next);
                         draftEditAudit(poState.po, po).forEach(record);
                         record(lifecycleAudit("Draft saved", poState, next));

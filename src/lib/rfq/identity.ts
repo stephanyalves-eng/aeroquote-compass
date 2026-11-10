@@ -11,3 +11,10 @@ export function ownerLabel(user: { email?: string | null; name?: string | null }
   const id = identityLabel(user);
   return id.signedIn ? id.primary : `${DEMO_BUYER_NAME} (fictional demo buyer)`;
 }
+/** Fictional actor credited to events recorded while signed out. */
+export const DEMO_AUDIT_ACTOR = "Marina Costa (Demo buyer)";
+/** Actor for every new audit event: signed-in name or email (never an internal id); otherwise the fictional demo buyer. */
+export function auditActor(user: { email?: string | null; name?: string | null } | null): string {
+  const id = identityLabel(user);
+  return id.signedIn ? id.primary : DEMO_AUDIT_ACTOR;
+}
