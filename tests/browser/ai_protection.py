@@ -1,5 +1,9 @@
+"""AI protection regression: anonymous denial and authenticated live extraction.
+
+Requires a session minted with lovable auth-session. Uses one paid AI request.
+Screenshots stay under /tmp/browser/ai-protection.
+"""
 import asyncio,json,os,re
-from pathlib import Path
 from playwright.async_api import async_playwright
 
 async def main():
@@ -14,8 +18,7 @@ async def main():
   await page.get_by_role('button',name='RFQ Setup',exact=True).click()
   await page.get_by_role('button',name=re.compile('Classic sample')).click()
   await page.get_by_role('button',name=re.compile('Reprocess')).first.wait_for()
-  print('upload actions',await page.get_by_role('button').all_text_contents())
-  await page.get_by_role('button',name='Reprocess Atlas Aero Components Ltda. (FICTITIOUS).txt',exact=True).click() if await page.get_by_role('button',name='Reprocess Atlas Aero Components Ltda. (FICTITIOUS).txt',exact=True).count() else await page.get_by_role('button',name=re.compile('Reprocess')).first.click()
+  await page.get_by_role('button',name=re.compile('Reprocess')).first.click()
   await page.get_by_role('button',name='Continue with Google',exact=True).wait_for()
   await page.screenshot(path='/tmp/browser/ai-protection/anonymous.png')
   print('Anonymous endpoint rejected and UI opens sign-in: PASS')
