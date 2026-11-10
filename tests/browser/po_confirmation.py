@@ -16,7 +16,13 @@ async def main():
    await pg.evaluate('([k,v])=>localStorage.setItem(k,v)',[minted['storage_key'],json.dumps(minted['session'])])
    await pg.reload(wait_until='networkidle')
   await pg.evaluate("window.__testPoEvents=[];window.__lovableEvents={track:(name,properties)=>{window.__testPoEvents.push({name,properties});return null}}")
-  await btn('RFQ Setup').click();await pg.get_by_role('button',name=re.compile('Extended sample')).click();await btn('Validate sample quotes (demo)').click()
+  await btn('RFQ Setup').click();await pg.get_by_role('button',name=re.compile('Extended sample')).click()
+  buyer_count=lambda:pg.evaluate("window.__testPoEvents.filter(e=>e.name==='project.rfq_recommended_after_buyer_confirmation').length")
+  assert await buyer_count()==0
+  await btn('Validate sample quotes (demo)').click()
+  assert await buyer_count()==1
+  await btn('Validate sample quotes (demo)').click()
+  assert await buyer_count()==1
   await btn('Continue to compare').click();await btn('Continue to decision').click();await btn('Record decision').first.click();await btn('Approve decision').click();await btn('Continue to PO & Release').click()
   await btn('Create PO from approved decision').click();await btn('Generate PO').wait_for()
   assert await btn('Check purchase order').is_disabled();assert await btn('Release purchase').is_disabled()
@@ -52,7 +58,7 @@ async def main():
   assert sum(e['name']=='project.po_validated' for e in events)==1,events
   assert sum(e['name']=='project.po_released' for e in events)==1,events
   assert not any(e['name']=='project.po_blocked' for e in events),events
-  await btn('Audit Trail').click();await pg.screenshot(path='/tmp/browser/po-confirmation/audit.png');assert await pg.get_by_text('PO supplier confirmation recorded',exact=True).count() >= 2;assert await pg.get_by_text('2027-03-15',exact=False).count()>0;assert await pg.get_by_text('2027-03-20',exact=False).count()>0;await btn('Purchase Orders').click()
+  await btn('Audit Trail').click();await pg.screenshot(path='/tmp/browser/po-confirmation/audit.png');assert await pg.get_by_text('RFQ recommendation after buyer quotation confirmation measured',exact=True).count()==1;assert await pg.get_by_text('PO supplier confirmation recorded',exact=True).count() >= 2;assert await pg.get_by_text('2027-03-15',exact=False).count()>0;assert await pg.get_by_text('2027-03-20',exact=False).count()>0;await btn('Purchase Orders').click()
   await btn('Create amendment').click();await btn('Confirm amend').click();assert await pg.get_by_text('Draft · Revision 2',exact=True).is_visible();assert await btn('Release purchase').is_disabled()
   assert await pg.get_by_role('region',name='Supplier confirmation',exact=True).get_by_text('Not yet recorded',exact=True).is_visible()
   await btn('PO list').click();await pg.get_by_label('PO RFQ').select_option('RFQ-24410');await pg.get_by_label('PO status').select_option('Superseded');assert await btn('Open PO').count()==1
@@ -78,6 +84,8 @@ async def main():
   events=await pg.evaluate('window.__testPoEvents')
   weekly=[e for e in events if e['name']=='project.rfq_recommended_after_supplier_confirmation']
   assert len(weekly)==1 and weekly[0]['properties']=={'synthetic':True},events
+  buyer_weekly=[e for e in events if e['name']=='project.rfq_recommended_after_buyer_confirmation']
+  assert len(buyer_weekly)==1 and buyer_weekly[0]['properties']=={'synthetic':True},events
   for e in events: assert set(e['properties']) <= {'synthetic','blockers','discrepancies','valid','reason'}
   print('PASS supplier acknowledgement and delivery, correction audit, immutable old version, analytics issue/check/block/release; draft save → generate → issue → verify → accept → release; PDF, zoom/fullscreen; amendment, superseded details, RFQ/status filters; widths 320–1440; errors:',errors)
   assert not errors;await b.close()
