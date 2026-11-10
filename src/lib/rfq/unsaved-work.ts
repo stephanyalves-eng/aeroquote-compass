@@ -28,3 +28,7 @@ export const SAVE_STATUS_LABEL: Record<WorkspaceSaveStatus, string> = {
   unsaved: "Unsaved changes",
   saved: "Saved",
 };
+/** True once the workspace holds any RFQ content (typed details, quotes, audit or a saved record). Drives dashboard empty states. */
+export function workspaceHasRfq(input: { reference: { rfqNumber?: string; partNumber?: string; description?: string }; documents: unknown[]; auditEvents: unknown[]; savedId?: string | undefined; unsaved: boolean }): boolean {
+  return Boolean(input.documents.length || input.auditEvents.length || input.savedId || input.unsaved || input.reference.rfqNumber?.trim() || input.reference.partNumber?.trim() || input.reference.description?.trim());
+}

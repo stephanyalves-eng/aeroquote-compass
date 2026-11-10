@@ -18,6 +18,10 @@ import {
   recommendationPeriodRange,
   weeklyRecommendationComparison,
   type RecommendationPeriod,
+  trackedWeeksLabel,
+  periodTotalLabel,
+  recommendationDisplayRange,
+  hasRecommendationData,
 } from "@/lib/rfq/weekly-recommendations";
 
 export function WeeklyRecommendationsChart() {
@@ -30,6 +34,8 @@ export function WeeklyRecommendationsChart() {
   const { rows, error } = weeklyRecommendationRows(snapshot, range.start, range.end);
   const totals = weeklyRecommendationSummary(rows);
   const comparison = weeklyRecommendationComparison(snapshot, range.start, range.end, mode);
+  const display = error ? null : recommendationDisplayRange(range.start, range.end, snapshot.updatedAt);
+  const hasData = hasRecommendationData(rows, mode);
   return (
     <section
       aria-labelledby="weekly-recommendations-title"
@@ -113,7 +119,7 @@ export function WeeklyRecommendationsChart() {
         )}
       </div>
       <p className="mt-2 text-xs text-text-tertiary">
-        {range.start} – {range.end} · Whole calendar weeks
+        {display ? display.label : `${range.start} – ${range.end}`} · Whole calendar weeks
       </p>
       {error && (
         <p role="alert" className="mt-2 text-sm text-status-error">
@@ -123,7 +129,7 @@ export function WeeklyRecommendationsChart() {
       <div className="mt-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-3xl font-medium tabular-nums">{totals[mode]}</span>
         <span className="text-sm text-text-secondary">
-          {mode === "real" ? "real" : "demo"} RFQs recommended · {totals.trackedWeeks} tracked weeks
+          {mode === "real" ? "real" : "demo"} RFQs recommended · {trackedWeeksLabel(totals.trackedWeeks)}
         </span>
       </div>
       {comparison && (
@@ -135,16 +141,16 @@ export function WeeklyRecommendationsChart() {
             <div>
               <p className="text-text-secondary">Selected period</p>
               <p className="font-medium tabular-nums">
-                {comparison.currentTotal ?? "Unknown"} RFQs
+                {periodTotalLabel(comparison.currentTotal)}
               </p>
               <p className="text-xs text-text-tertiary">
-                {comparison.selectedRange.start} – {comparison.selectedRange.end}
+                {display?.label ?? `${comparison.selectedRange.start} – ${comparison.selectedRange.end}`}
               </p>
             </div>
             <div>
               <p className="text-text-secondary">Previous period</p>
               <p className="font-medium tabular-nums">
-                {comparison.previousTotal ?? "Unknown"} RFQs
+                {periodTotalLabel(comparison.previousTotal)}
               </p>
               <p className="text-xs text-text-tertiary">
                 {comparison.previousRange.start} – {comparison.previousRange.end}
@@ -156,7 +162,7 @@ export function WeeklyRecommendationsChart() {
               </p>
               <p className="font-medium tabular-nums">
                 {comparison.difference === null
-                  ? "Unavailable"
+                  ? "Not available yet"
                   : `${comparison.difference > 0 ? "+" : ""}${comparison.difference} RFQs`}
                 {comparison.percentage !== null &&
                   ` (${comparison.percentage > 0 ? "+" : ""}${comparison.percentage.toFixed(1)}%)`}
@@ -180,7 +186,12 @@ export function WeeklyRecommendationsChart() {
           )}
         </div>
       )}
-      <div className="mt-4 h-56 min-w-0 overflow-hidden" aria-hidden="true">
+      {!hasData && !error && (
+        <div className="mt-4 flex h-32 items-center justify-center rounded-sm border border-dashed border-border-default px-4 text-center text-sm text-text-secondary">
+          No {mode === "real" ? "real" : "demo"} RFQ recommendations recorded in this period yet.
+        </div>
+      )}
+      {hasData && <div className="mt-4 h-56 min-w-0 overflow-hidden" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} margin={{ top: 12, right: 12, left: -20, bottom: 4 }}>
             <CartesianGrid stroke="var(--border-subtle)" vertical={false} />
@@ -212,7 +223,7 @@ export function WeeklyRecommendationsChart() {
             />
           </BarChart>
         </ResponsiveContainer>
-      </div>
+      </div>}
       <p className="mt-2 text-sm text-text-secondary">
         {totals[mode] === 0
           ? "No recommendations recorded in the tracked weeks of this period. "

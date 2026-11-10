@@ -149,3 +149,28 @@ export function weeklyRecommendationComparison(
     weeks: selected.rows.length,
   };
 }
+
+/** "1 tracked week" / "3 tracked weeks". */
+export function trackedWeeksLabel(count: number) {
+  return `${count} tracked ${count === 1 ? "week" : "weeks"}`;
+}
+/** Plain-language period total; unknown history is never shown as a number. */
+export function periodTotalLabel(total: number | null) {
+  return total === null ? "Not tracked yet" : `${total} ${total === 1 ? "RFQ" : "RFQs"}`;
+}
+/**
+ * Single range definition for the widget: whole Monday-start weeks, with the end
+ * clamped to today (São Paulo) and flagged "to date" for the current incomplete week.
+ */
+export function recommendationDisplayRange(start: string, end: string, updatedAt: string) {
+  const today = saoPauloDate(updatedAt);
+  const first = mondayOf(start);
+  const lastSunday = new Date(Date.parse(`${mondayOf(end)}T12:00:00Z`) + 6 * DAY).toISOString().slice(0, 10);
+  const toDate = lastSunday >= today;
+  const finish = toDate ? today : lastSunday;
+  return { start: first, end: finish, toDate, label: `${first} – ${finish}${toDate ? " (to date)" : ""}` };
+}
+/** The chart is only drawn when at least one tracked week has a recommendation in the selected series. */
+export function hasRecommendationData(rows: WeeklyRecommendationRow[], mode: "real" | "demo") {
+  return rows.some((row) => (row[mode] ?? 0) > 0);
+}
