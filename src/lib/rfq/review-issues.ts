@@ -101,6 +101,12 @@ export function toggleReviewFollowUp(d: QuoteDocument, field: ReviewField): Quot
   fieldStatus[field] = { ...fieldStatus[field], confirmed: fieldConfirmed(d, field), followUp: !d.fieldStatus?.[field]?.followUp };
   return { ...d, fieldStatus };
 }
+export function setAllReviewFollowUp(d: QuoteDocument, followUp: boolean): QuoteDocument {
+  if (!d.original || !d.reviewed) return d;
+  return REVIEW_FIELDS.reduce((updated, field) =>
+    Boolean(updated.fieldStatus?.[field.key]?.followUp) === followUp
+      ? updated : toggleReviewFollowUp(updated, field.key), d);
+}
 export function bulkReviewPreview(documents: QuoteDocument[], ref: RfqReference, selectedId?: string) {
   return {
     globalCount: documents.reduce((n, d) => n + reliableFields(d, documents, ref).length, 0),
