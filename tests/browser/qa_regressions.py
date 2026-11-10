@@ -40,10 +40,11 @@ async def main():
         page2.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
         await page2.goto(URL); await page2.wait_for_timeout(2500)
         await page2.get_by_role("button", name="Quotations").first.click(); await page2.wait_for_timeout(500)
+        await page2.get_by_text("Paste quotation text").click()
         ta = page2.locator("textarea").first
         if await ta.count():
             await ta.fill("Supplier: My Supplier Ltd\nUnit price USD 100")
-            add = page2.get_by_role("button", name="Add pasted quotation")
+            add = page2.get_by_role("button", name="Add quotation")
             if await add.count(): await add.first.click()
             await page2.wait_for_timeout(500)
         await page2.get_by_role("button", name="Dashboard").first.click(); await page2.wait_for_timeout(500)
