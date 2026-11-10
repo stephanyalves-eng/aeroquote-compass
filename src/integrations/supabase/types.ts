@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      buyer_recommendation_milestones: {
+        Row: {
+          milestone_id: string
+          recorded_at: string
+          synthetic: boolean
+        }
+        Insert: {
+          milestone_id: string
+          recorded_at?: string
+          synthetic: boolean
+        }
+        Update: {
+          milestone_id?: string
+          recorded_at?: string
+          synthetic?: boolean
+        }
+        Relationships: []
+      }
+      buyer_recommendation_tracking: {
+        Row: {
+          id: boolean
+          started_at: string
+        }
+        Insert: {
+          id?: boolean
+          started_at?: string
+        }
+        Update: {
+          id?: boolean
+          started_at?: string
+        }
+        Relationships: []
+      }
       rfq_history: {
         Row: {
           created_at: string
@@ -52,7 +85,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      record_buyer_recommendation: {
+        Args: { p_milestone_id: string; p_synthetic: boolean }
+        Returns: undefined
+      }
+      weekly_buyer_recommendations: { Args: never; Returns: Json }
     }
     Enums: {
       [_ in never]: never

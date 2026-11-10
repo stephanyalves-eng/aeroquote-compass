@@ -8,6 +8,13 @@
       "when": 1792966681269,
       "tag": "0000_create_rfq_history",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794273861400,
+      "tag": "0001_weekly_buyer_recommendation_totals",
+      "breakpoints": true
     }
   ]
 }
