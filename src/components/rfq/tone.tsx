@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 /** Status tag: red = blocker, amber = review / re-evaluation, green = confirmed / current, gray = superseded or informational. Always paired with a word. */
 export type Tone = "error" | "warning" | "success" | "neutral";
-const CLS: Record<Tone, string> = { error: "bg-error-bg text-error", warning: "bg-warning-bg text-warning", success: "bg-success-bg text-success", neutral: "bg-surface-sunken text-text-tertiary" };
+const CLS: Record<Tone, string> = { error: "bg-error-bg text-error", warning: "bg-warning-bg text-warning-tag", success: "bg-success-bg text-success-tag", neutral: "bg-surface-sunken text-text-tertiary" };
 export function Tag({ tone, children, title }: { tone: Tone; children: ReactNode; title?: string }) {
   return <span title={title} className={`inline-flex max-w-full rounded-sm px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.08em] ${CLS[tone]}`}>{children}</span>;
 }

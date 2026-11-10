@@ -18,7 +18,7 @@ import { LandedBreakdown, LandedDiff } from "./landed-breakdown";
 export function EligibilityBadge({ status }: { status: EligibilityStatus }) {
   return (
     <span
-      className={`inline-flex rounded-sm border px-2 py-1 font-mono text-[11px] uppercase ${status === "not_eligible" ? "border-error bg-error-bg text-error" : status === "awaiting_review" ? "border-border-default bg-warning-bg text-warning" : "border-border-default bg-success-bg text-success"}`}
+      className={`inline-flex rounded-sm border px-2 py-1 font-mono text-[11px] uppercase ${status === "not_eligible" ? "border-error bg-error-bg text-error" : status === "awaiting_review" ? "border-border-default bg-warning-bg text-warning-tag" : "border-border-default bg-success-bg text-success-tag"}`}
     >
       {ELIGIBILITY_LABELS[status]}
     </span>

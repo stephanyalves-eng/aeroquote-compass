@@ -1,3 +1,4 @@
+import { useOverflowFocusable } from "@/hooks/use-overflow-focusable";
 import { useId, useState } from "react";
 import {
   LayoutDashboard,
@@ -468,10 +469,13 @@ const STEP_TONE: Record<ErpStepStatus, string> = {
 };
 
 export function ProcessStepper({ steps }: { steps: ErpProcessStep[] }) {
+  const { ref, overflows } = useOverflowFocusable<HTMLElement>();
   return (
     <nav
-      aria-label="Process flow"
-      className="overflow-x-auto rounded-md border border-border-default bg-surface-card"
+      ref={ref}
+      aria-label={overflows ? "Process flow (scrollable)" : "Process flow"}
+      {...(overflows ? { tabIndex: 0 } : {})}
+      className="overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring rounded-md border border-border-default bg-surface-card"
     >
       <ol className="flex min-w-max items-stretch">
         {steps.map((s, i) => {

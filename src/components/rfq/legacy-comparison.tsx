@@ -6,8 +6,8 @@ import type { QuoteAnalysis, RfqReference, RiskLevel, Severity } from "@/lib/rfq
 const usd = (n: number | null) => n === null ? "Not provided" : "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 const num = (n: number | null | undefined, opts: Intl.NumberFormatOptions = {}) => n == null ? "Not provided" : n.toLocaleString("en-US", opts);
 const inputCls = "w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary";
-const riskColor: Record<RiskLevel, string> = { Low: "text-success border-success bg-success-bg", Medium: "text-warning border-warning bg-warning-bg", High: "text-error border-error bg-error-bg" };
-const sevColor: Record<Severity, string> = { HIGH: "text-error border-error bg-error-bg", MEDIUM: "text-warning border-warning bg-warning-bg", INFO: "text-info border-info bg-info-bg" };
+const riskColor: Record<RiskLevel, string> = { Low: "text-success-tag border-success bg-success-bg", Medium: "text-warning-tag border-warning bg-warning-bg", High: "text-error border-error bg-error-bg" };
+const sevColor: Record<Severity, string> = { HIGH: "text-error border-error bg-error-bg", MEDIUM: "text-warning-tag border-warning bg-warning-bg", INFO: "text-info border-info bg-info-bg" };
 
 function Pill({ className, children }: { className: string; children: ReactNode }) {
   return <span className={`inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs font-medium ${className}`}><span className="h-2 w-2 bg-current" />{children}</span>;
