@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
+import type { WeeklyRecommendationSnapshot } from "./weekly-recommendations";
 
 const snapshotSchema = z.object({
   updatedAt: z.string().datetime({ offset: true }),
@@ -14,7 +15,7 @@ const snapshotSchema = z.object({
     }),
   ),
 });
-export const readWeeklyRecommendations = createServerFn({ method: "GET" }).handler(async () => {
+export const readWeeklyRecommendations = createServerFn({ method: "GET" }).handler(async (): Promise<WeeklyRecommendationSnapshot & { unavailable: boolean }> => {
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"];
   const url = process.env["SUPABASE_URL"];
   if (!key || !url) throw new Error("Weekly totals are temporarily unavailable.");
