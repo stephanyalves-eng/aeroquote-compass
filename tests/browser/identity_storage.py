@@ -15,6 +15,8 @@ SESSION = {"access_token": TOKEN, "refresh_token": "fake", "token_type": "bearer
 async def fresh(b, w, init=None):
     ctx = await b.new_context(viewport={"width": w, "height": 1800})
     await ctx.route("**/auth/v1/**", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps(USER)))
+    # The signed-in session is deliberately fake; mock milestone writes too.
+    await ctx.route("**/rest/v1/rpc/record_buyer_recommendation", lambda r: r.fulfill(status=200, content_type="application/json", body="null"))
     page = await ctx.new_page(); errs = []
     page.on("pageerror", lambda e: errs.append("page: " + str(e)))
     page.on("console", lambda m: errs.append("console: " + m.text) if m.type == "error" else None)

@@ -12,7 +12,12 @@ function memoryStorage(): StorageLike {
 }
 describe("Browser storage capability", () => {
   it("returns false on SSR", () => {
-    expect(isBrowserStorageAvailable()).toBe(false);
+    vi.stubGlobal("window", undefined);
+    try {
+      expect(isBrowserStorageAvailable()).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
   it("requires a successful write, read and removal", () => {
     const storage = memoryStorage();
