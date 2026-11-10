@@ -285,7 +285,9 @@ export function GlobalSearch({
         role="combobox"
         aria-expanded={open && results.length > 0}
         aria-controls={open && results.length > 0 ? listId : undefined}
-        aria-activedescendant={open && results[activeIndex] ? `${listId}-${activeIndex}` : undefined}
+        aria-activedescendant={
+          open && results[activeIndex] ? `${listId}-${activeIndex}` : undefined
+        }
         aria-label="Global search: RFQ, supplier, quote, part number, PO, drawing or revision"
         placeholder="Search RFQ, supplier, PO…"
         value={query}
@@ -301,9 +303,11 @@ export function GlobalSearch({
           } else if ((event.key === "ArrowDown" || event.key === "ArrowUp") && results.length) {
             event.preventDefault();
             setOpen(true);
-            setActiveIndex((index) => event.key === "ArrowDown"
-              ? (index + 1) % results.length
-              : (index <= 0 ? results.length : index) - 1);
+            setActiveIndex((index) =>
+              event.key === "ArrowDown"
+                ? (index + 1) % results.length
+                : (index <= 0 ? results.length : index) - 1,
+            );
           } else if (event.key === "Enter" && open && results[activeIndex]) {
             event.preventDefault();
             const entry = results[activeIndex];
