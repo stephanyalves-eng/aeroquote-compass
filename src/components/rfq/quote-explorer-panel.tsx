@@ -10,7 +10,7 @@ import { ELIGIBILITY_LABELS } from "@/lib/rfq/eligibility";
 export function QuoteExplorer({ rows, selected, onSelected, onFiltered }: { rows: ExplorerRow[]; selected: string[]; onSelected: (ids: string[]) => void; onFiltered: (ids: string[] | null) => void }) {
   const [f, setF] = useState<ExplorerFilters>({ ...EMPTY_FILTERS, view: rows.length > 6 ? "shortlist" : "all" });
   const filters = { ...f, selected };
-  const visible = useMemo(() => filterAndSort(rows, filters), [rows, f, selected]);
+  const visible = useMemo(() => filterAndSort(rows, { ...f, selected }), [rows, f, selected]);
   useEffect(() => {
     const narrowed = Boolean(f.search || f.revision || f.eligibility || f.risk || f.currency || f.status || !["all", "shortlist"].includes(f.view));
     onFiltered(narrowed ? visible.map((r) => r.id) : null);
