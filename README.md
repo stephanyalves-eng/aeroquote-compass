@@ -8,6 +8,17 @@ AeroQuote Compass is an aerospace procurement workspace that takes supplier quot
 
 > All demo data (suppliers, quotes, drawings, purchase orders, investigations, people) is synthetic and fictitious. It does not represent real companies, prices or parts.
 
+<a href="https://aeroquote-compass.lovable.app">
+  <img src="docs/images/aeroquote-demo.gif" alt="AeroQuote Compass walkthrough: buyer validation of synthetic supplier quotes and the explained sourcing recommendation" width="960">
+</a>
+
+### Screenshots
+
+| Buyer validation | Supplier recommendation |
+| --- | --- |
+| [![Buyer Validation queue with 20 synthetic quotes and critical-field review filters](docs/images/buyer-validation.png)](docs/images/buyer-validation.png) | [![Decision screen with the recommended supplier, annual landed cost and reasons for the recommendation](docs/images/supplier-recommendation.png)](docs/images/supplier-recommendation.png) |
+| Review critical fields before comparing quotes. | Review the figures and reasoning behind the recommendation. |
+
 ## Principles
 
 - **AI extracts. Code calculates. You decide.** The AI only turns documents into a fixed schema; missing values stay empty and are never guessed.
